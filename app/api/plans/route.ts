@@ -6,19 +6,22 @@ import { PLAN_META, type PlanType } from "@/lib/points";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function sanitizeRounds(rounds: unknown, planType: PlanType): number[] {
+/**
+ * @param allowZero 0(그 회차엔 아바타 안 만들기)을 허용할지.
+ *   허용하면 0 은 그대로 두고, 아니면 최저 금액으로 올린다.
+ */
+function sanitizeRounds(rounds: unknown, planType: PlanType, allowZero: boolean): number[] {
   const meta = PLAN_META[planType];
   if (!Array.isArray(rounds)) return [meta.min];
-  const out = rounds
-    .slice(0, 60)
-    .map((n) => {
-      let v = Math.round(Number(n) || 0);
-      if (v < meta.min) v = meta.min;
-      // 단위(step) 맞춤
-      const rem = (v - meta.min) % meta.step;
-      if (rem !== 0) v -= rem;
-      return v;
-    });
+  const out = rounds.slice(0, 60).map((n) => {
+    let v = Math.round(Number(n) || 0);
+    if (v <= 0) return allowZero ? 0 : meta.min;
+    if (v < meta.min) v = meta.min;
+    // 단위(step) 맞춤
+    const rem = (v - meta.min) % meta.step;
+    if (rem !== 0) v -= rem;
+    return v;
+  });
   return out.length ? out : [meta.min];
 }
 
@@ -36,8 +39,9 @@ export async function POST(req: Request) {
     const body = await req.json();
     const planType: PlanType = body.planType === "won11" ? "won11" : "won33";
     const name = String(body.name ?? "새 플랜").slice(0, 60) || "새 플랜";
-    const rounds = sanitizeRounds(body.rounds, planType);
-    const plan = await createPlan(user.id, { name, planType, rounds });
+    const allowZero = body.allowZero === true;
+    const rounds = sanitizeRounds(body.rounds, planType, allowZero);
+    const plan = await createPlan(user.id, { name, planType, rounds, allowZero });
     return NextResponse.json({ plan });
   } catch (e) {
     console.error("create plan error", e);

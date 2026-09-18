@@ -26,6 +26,9 @@ export const MAX_AGE = 18;
  */
 export function avatarPoint(goal: number, k: number, cap: number): number {
   if (k < 1 || k > MAX_AGE) return 0;
+  // 목표매출이 0이면 그 회차에 아바타를 안 만든 것이다.
+  // 이 가드가 없으면 3살부터 정착 10만원이 붙어 없는 아바타가 돈을 만든다.
+  if (goal <= 0) return 0;
   const B = goal / 1.1; // 기준매출 = 목표 ÷ 1.1 (목표의 10%는 회사사치세)
   let p = B * 0.32; // 판매 (상한 없음)
   if (k >= 3) p += 100_000; // 정착 (3회차부터, 상한 없음)
@@ -149,6 +152,8 @@ export function roundDetail(goals: number[], cap: number, R: number): RoundDetai
     if (k < 1 || k > MAX_AGE) continue; // 아직 없거나 이미 소멸
 
     const goal = goals[c - 1] || 0;
+    if (goal <= 0) continue; // 그 회차엔 아바타를 안 만들었다
+
     const baseExact = goal / 1.1;
     const rate = k >= 4 ? achieveRate(k) : 0;
     const achieveRawExact = baseExact * rate;
@@ -282,10 +287,12 @@ export function planSummary(goals: number[], cap: number): PlanSummary {
 
   const roi = totalInvest > 0 ? ((totalNet - totalInvest) / totalInvest) * 100 : 0;
 
-  // 손익분기 회차: 누적수당이 누적매출을 처음 따라잡는 회차
+  // 손익분기 회차: 누적수당이 누적매출을 처음 따라잡는 회차.
+  // 아직 매출이 하나도 없으면(0으로 잡은 회차만 지났으면) 따질 게 없다.
   let breakEvenRound: number | null = null;
   for (const row of inflow) {
-    if (row.cumulative >= cumulativeSales(goals, row.round)) {
+    const sales = cumulativeSales(goals, row.round);
+    if (sales > 0 && row.cumulative >= sales) {
       breakEvenRound = row.round;
       break;
     }

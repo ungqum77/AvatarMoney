@@ -17,6 +17,7 @@ export default async function SimulatorPage({ params }: { params: { id: string }
       initialName={plan.name}
       initialType={plan.planType}
       initialRounds={plan.rounds}
+      initialAllowZero={plan.allowZero}
     />
   );
 }

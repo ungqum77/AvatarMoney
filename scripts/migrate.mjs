@@ -38,8 +38,17 @@ const files = readdirSync(SQL_DIR).filter((f) => f.endsWith(".sql")).sort();
 console.log(`DB: ${url}`);
 for (const f of files) {
   process.stdout.write(`  ${f} ... `);
-  await db.executeMultiple(readFileSync(join(SQL_DIR, f), "utf8"));
-  console.log("완료");
+  try {
+    await db.executeMultiple(readFileSync(join(SQL_DIR, f), "utf8"));
+    console.log("완료");
+  } catch (e) {
+    // SQLite 에는 ADD COLUMN IF NOT EXISTS 가 없다. 이미 있는 컬럼이면 넘어간다.
+    if (/duplicate column name/i.test(String(e?.message ?? e))) {
+      console.log("이미 적용됨");
+    } else {
+      throw e;
+    }
+  }
 }
 
 const { rows } = await db.execute(

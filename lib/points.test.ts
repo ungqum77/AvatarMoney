@@ -7,6 +7,7 @@ import {
   planSummary,
   cumulativeSales,
   roundSalesTotal,
+  avatarNetLifetime,
   MAX_AGE,
 } from "./points";
 
@@ -374,5 +375,68 @@ describe("자가충당 회차", () => {
       cap
     ).selfFundRound;
     expect(rising === null || rising >= flat).toBe(true);
+  });
+});
+
+// ============================================================================
+// 목표매출 0 = 그 회차엔 아바타를 안 만든다
+// ============================================================================
+describe("아바타 0 (안 만드는 회차)", () => {
+  const cap = CAP.won33;
+
+  it("목표매출 0 이면 어느 나이에서도 수당이 없다", () => {
+    for (let k = 1; k <= MAX_AGE; k++) {
+      // 가드가 없으면 3살부터 정착 10만원이 붙는다
+      expect(avatarPoint(0, k, cap)).toBe(0);
+      expect(netPoint(avatarPoint(0, k, cap))).toBe(0);
+    }
+  });
+
+  it("0인 회차는 아바타 목록에 안 나온다", () => {
+    // 1회차 33만 · 2회차 0 · 3회차 33만
+    const g = [330_000, 0, 330_000];
+    const d = roundDetail(g, cap, 3);
+    expect(d.shares.map((s) => s.bornRound)).toEqual([1, 3]);
+    expect(d.shares.every((s) => s.goal > 0)).toBe(true);
+  });
+
+  it("0인 회차는 총매출에도 안 들어간다", () => {
+    const g = [330_000, 0, 330_000];
+    expect(roundSalesTotal(g, 1)).toBe(330_000);
+    expect(roundSalesTotal(g, 2)).toBe(330_000); // 2회차는 안 만들었다
+    expect(roundSalesTotal(g, 3)).toBe(660_000);
+  });
+
+  it("0인 회차를 뺀 플랜과 아예 없는 플랜의 수당이 같다", () => {
+    const withZero = planSummary([330_000, 0, 330_000], cap);
+    const manual =
+      avatarNetLifetime(330_000, cap) + avatarNetLifetime(330_000, cap);
+    expect(withZero.totalNet).toBe(manual);
+  });
+
+  it("전부 0이면 매출도 수당도 0", () => {
+    const s = planSummary([0, 0, 0], cap);
+    expect(s.totalNet).toBe(0);
+    expect(s.totalInvest).toBe(0);
+    // 매출이 하나도 없으면 본전을 따질 게 없다. 0 >= 0 이라고 1회차로 치면 안 된다.
+    expect(s.breakEvenRound).toBeNull();
+  });
+
+  it("앞 회차를 0으로 비워두면 본전 회차는 매출이 시작된 뒤에 잡힌다", () => {
+    // 1·2회차는 안 만들고 3회차부터 시작
+    const s = planSummary([0, 0, 330_000, 330_000], cap);
+    expect(s.breakEvenRound).not.toBeNull();
+    expect(s.breakEvenRound!).toBeGreaterThanOrEqual(3);
+  });
+
+  it("항목 합 = 산출 은 0이 섞여도 유지된다", () => {
+    const g = [330_000, 0, 550_000, 0, 440_000];
+    for (let R = 1; R <= g.length + MAX_AGE; R++) {
+      const d = roundDetail(g, cap, R);
+      expect(d.shares.reduce((a, s) => a + s.net, 0)).toBe(d.net);
+      for (const s of d.shares) {
+        expect(s.sale + s.settle + s.achieve).toBe(s.gross);
+      }
+    }
   });
 });

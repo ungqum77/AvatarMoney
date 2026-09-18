@@ -9,6 +9,7 @@ export interface PlanDTO {
   name: string;
   planType: PlanType;
   rounds: number[];
+  allowZero: boolean;
   updatedAt: number | null;
   createdAt: number;
 }
@@ -26,6 +27,7 @@ function toDTO(row: typeof plans.$inferSelect): PlanDTO {
     name: row.name,
     planType: (row.planType === "won11" ? "won11" : "won33") as PlanType,
     rounds,
+    allowZero: row.allowZero === 1,
     updatedAt: row.updatedAt,
     createdAt: row.createdAt,
   };
@@ -53,7 +55,7 @@ export async function getPlan(userId: number, id: number): Promise<PlanDTO | nul
 
 export async function createPlan(
   userId: number,
-  data: { name: string; planType: PlanType; rounds: number[] }
+  data: { name: string; planType: PlanType; rounds: number[]; allowZero?: boolean }
 ): Promise<PlanDTO> {
   const db = getDb();
   const now = Date.now();
@@ -64,6 +66,7 @@ export async function createPlan(
       name: data.name.slice(0, 60) || "새 플랜",
       planType: data.planType,
       roundsJson: JSON.stringify(data.rounds),
+      allowZero: data.allowZero ? 1 : 0,
       createdAt: now,
       updatedAt: now,
     })
@@ -74,13 +77,14 @@ export async function createPlan(
 export async function updatePlan(
   userId: number,
   id: number,
-  data: Partial<{ name: string; planType: PlanType; rounds: number[] }>
+  data: Partial<{ name: string; planType: PlanType; rounds: number[]; allowZero: boolean }>
 ): Promise<PlanDTO | null> {
   const db = getDb();
   const patch: Record<string, unknown> = { updatedAt: Date.now() };
   if (data.name !== undefined) patch.name = data.name.slice(0, 60) || "새 플랜";
   if (data.planType !== undefined) patch.planType = data.planType;
   if (data.rounds !== undefined) patch.roundsJson = JSON.stringify(data.rounds);
+  if (data.allowZero !== undefined) patch.allowZero = data.allowZero ? 1 : 0;
   const updated = await db
     .update(plans)
     .set(patch)

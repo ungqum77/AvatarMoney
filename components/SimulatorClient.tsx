@@ -13,15 +13,19 @@ export default function SimulatorClient({
   initialName,
   initialType,
   initialRounds,
+  initialAllowZero,
 }: {
   id: number;
   initialName: string;
   initialType: PlanType;
   initialRounds: number[];
+  initialAllowZero: boolean;
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const [type, setType] = useState<PlanType>(initialType);
+  // 아바타를 0으로(그 회차엔 안 만들기) 잡을 수 있는지
+  const [allowZero, setAllowZero] = useState(initialAllowZero);
   const [rounds, setRounds] = useState<number[]>(
     initialRounds.length ? initialRounds : [PLAN_META[initialType].min]
   );
@@ -34,6 +38,7 @@ export default function SimulatorClient({
   const [saved, setSaved] = useState(() => ({
     name: initialName,
     type: initialType,
+    allowZero: initialAllowZero,
     rounds: (initialRounds.length ? initialRounds : [PLAN_META[initialType].min]).join(","),
   }));
 
@@ -44,16 +49,37 @@ export default function SimulatorClient({
   const summary = useMemo(() => planSummary(rounds, meta.cap), [rounds, meta.cap]);
 
   const dirty =
-    name !== saved.name || type !== saved.type || rounds.join(",") !== saved.rounds;
+    name !== saved.name ||
+    type !== saved.type ||
+    allowZero !== saved.allowZero ||
+    rounds.join(",") !== saved.rounds;
 
   function clamp(v: number): number {
-    if (v < meta.min) v = meta.min;
+    if (v <= 0) return allowZero ? 0 : meta.min;
+    if (v < meta.min) return meta.min;
     const rem = (v - meta.min) % meta.step;
     if (rem !== 0) v -= rem;
     return v;
   }
   function setRound(i: number, v: number) {
     setRounds((rs) => rs.map((x, idx) => (idx === i ? clamp(v) : x)));
+  }
+
+  // ± 는 0 과 최저 금액 사이를 오갈 수 있어야 한다.
+  // 최저에서 − 를 누르면 0(안 만들기), 0 에서 + 를 누르면 최저로 돌아온다.
+  function step(i: number, dir: 1 | -1) {
+    const v = rounds[i] ?? meta.min;
+    if (dir < 0) {
+      setRound(i, v <= meta.min ? 0 : v - meta.step);
+    } else {
+      setRound(i, v <= 0 ? meta.min : v + meta.step);
+    }
+  }
+
+  /** 옵션을 끄면 0으로 둔 회차를 최저 금액으로 올린다 */
+  function changeAllowZero(on: boolean) {
+    setAllowZero(on);
+    if (!on) setRounds((rs) => rs.map((v) => (v <= 0 ? meta.min : v)));
   }
   function addRound() {
     setRounds((rs) => [...rs, rs.length ? rs[rs.length - 1] : meta.min]);
@@ -114,11 +140,11 @@ export default function SimulatorClient({
     const res = await fetch(`/api/plans/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim() || "새 플랜", planType: type, rounds }),
+      body: JSON.stringify({ name: name.trim() || "새 플랜", planType: type, rounds, allowZero }),
     });
     setSaving(false);
     if (res.ok) {
-      setSaved({ name: name.trim() || "새 플랜", type, rounds: rounds.join(",") });
+      setSaved({ name: name.trim() || "새 플랜", type, allowZero, rounds: rounds.join(",") });
       setToast("플랜이 저장되었습니다 ✓");
       setTimeout(() => setToast(""), 2200);
       router.refresh();
@@ -175,6 +201,26 @@ export default function SimulatorClient({
               );
             })}
           </div>
+
+          {/* 플랜 옵션 */}
+          <label className="flex items-start gap-3 rounded-xl bg-surface-container-low px-3 py-3 cursor-pointer min-h-[56px]">
+            <input
+              type="checkbox"
+              checked={allowZero}
+              onChange={(e) => changeAllowZero(e.target.checked)}
+              className="w-7 h-7 rounded accent-primary shrink-0 mt-0.5"
+            />
+            <div className="min-w-0">
+              <span className="block text-[19px] font-bold text-on-surface leading-tight">
+                아바타를 0으로 잡을 수 있게
+              </span>
+              <span className="block text-[16px] font-semibold text-on-surface-variant leading-snug mt-0.5">
+                {allowZero
+                  ? "− 를 끝까지 누르면 그 회차는 아바타를 안 만듭니다"
+                  : "모든 회차에 아바타를 하나씩 만듭니다"}
+              </span>
+            </div>
+          </label>
         </div>
 
         {/* 요약 (sticky) */}
@@ -318,20 +364,28 @@ export default function SimulatorClient({
 
           <div className="flex items-center justify-between gap-3">
             <button
-              onClick={() => setRound(0, (rounds[0] ?? meta.min) - meta.step)}
+              onClick={() => step(0, -1)}
               aria-label="감소"
               className="w-14 h-14 rounded-xl bg-surface-container text-primary flex items-center justify-center shadow-sm active:scale-90 shrink-0"
             >
               <Icon name="remove" size={28} />
             </button>
             <div className="flex-1 text-center min-w-0">
-              <span className="text-[26px] font-extrabold text-on-surface num-font">
-                {won(rounds[0] ?? meta.min)}
-              </span>
-              <span className="text-[19px] font-bold text-on-surface ml-0.5">원</span>
+              {(rounds[0] ?? meta.min) <= 0 ? (
+                <span className="text-[24px] font-extrabold text-on-surface-variant">
+                  아바타 안 만듦
+                </span>
+              ) : (
+                <>
+                  <span className="text-[26px] font-extrabold text-on-surface num-font">
+                    {won(rounds[0] ?? meta.min)}
+                  </span>
+                  <span className="text-[19px] font-bold text-on-surface ml-0.5">원</span>
+                </>
+              )}
             </div>
             <button
-              onClick={() => setRound(0, (rounds[0] ?? meta.min) + meta.step)}
+              onClick={() => step(0, 1)}
               aria-label="증가"
               className="w-14 h-14 rounded-xl bg-surface-container text-primary flex items-center justify-center shadow-sm active:scale-90 shrink-0"
             >
@@ -380,22 +434,26 @@ export default function SimulatorClient({
                     onClick={() => setOpenRound(i + 1)}
                     className="flex-1 min-w-0 text-left"
                   >
-                    <div className="text-[19px] font-extrabold text-on-surface num-font leading-tight truncate">
-                      {won(goal)}원
+                    <div
+                      className={`text-[19px] font-extrabold num-font leading-tight truncate ${
+                        goal <= 0 ? "text-on-surface-variant" : "text-on-surface"
+                      }`}
+                    >
+                      {goal <= 0 ? "아바타 안 만듦" : `${won(goal)}원`}
                     </div>
                     <div className="text-[14px] font-bold text-secondary leading-tight truncate">
-                      평생 +{shortKRW(avatarNetLifetime(goal, meta.cap))}
+                      {goal <= 0 ? "수당 없음" : `평생 +${shortKRW(avatarNetLifetime(goal, meta.cap))}`}
                     </div>
                   </button>
                   <button
-                    onClick={() => setRound(i, goal - meta.step)}
+                    onClick={() => step(i, -1)}
                     aria-label={`${i + 1}회차 감소`}
                     className="w-11 h-11 rounded-lg bg-surface-container text-primary flex items-center justify-center active:scale-90 shrink-0"
                   >
                     <Icon name="remove" size={22} />
                   </button>
                   <button
-                    onClick={() => setRound(i, goal + meta.step)}
+                    onClick={() => step(i, 1)}
                     aria-label={`${i + 1}회차 증가`}
                     className="w-11 h-11 rounded-lg bg-surface-container text-primary flex items-center justify-center active:scale-90 shrink-0"
                   >
