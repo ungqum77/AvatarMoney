@@ -8,6 +8,26 @@ import { planSummary, avatarNetLifetime, PLAN_META, MAX_AGE, type PlanType } fro
 import Icon from "@/components/Icon";
 import RoundDetailSheet from "@/components/RoundDetailSheet";
 
+/**
+ * 자주 쓰는 조합. 1회차(첫코드)와 2회차부터의 금액을 한 번에 채운다.
+ * 값은 11만원 단위라 두 유형(11만형·33만형) 모두에서 그대로 쓸 수 있다.
+ */
+interface Template {
+  label: string;
+  first: number;
+  rest: number;
+}
+
+const TEMPLATES: Template[] = [
+  { label: "110 - 33", first: 1_100_000, rest: 330_000 },
+  { label: "1100 - 330", first: 11_000_000, rest: 3_300_000 },
+];
+
+/** 11,000,000 → "1,100만" */
+function manLabel(v: number): string {
+  return `${Math.round(v / 10_000).toLocaleString("ko-KR")}만`;
+}
+
 export default function SimulatorClient({
   id,
   initialName,
@@ -120,10 +140,27 @@ export default function SimulatorClient({
     bulk(next, `${n}회차로 맞췄습니다`);
   }
 
-  /** 2회차부터 1회차와 같은 금액으로 */
-  function fillSame() {
+  /** 2회차부터 지정한 금액으로. 1회차(본코드)는 건드리지 않는다. */
+  function fillRest(v: number) {
     const first = rounds[0] ?? meta.min;
-    bulk(rounds.map(() => first), `전부 ${won(first)}원으로 채웠습니다`);
+    const rest = v <= 0 && allowZero ? 0 : clamp(1, v);
+    bulk(
+      rounds.map((_, i) => (i === 0 ? first : rest)),
+      rest <= 0
+        ? "2회차부터 아바타를 안 만듭니다"
+        : `2회차부터 ${won(rest)}원으로 채웠습니다`
+    );
+  }
+
+  /** 템플릿: 1회차와 2회차부터의 금액을 한 번에 */
+  function applyTemplate(tpl: Template) {
+    const first = clamp(0, tpl.first);
+    const rest = clamp(1, tpl.rest);
+    const n = Math.max(rounds.length, 2);
+    bulk(
+      Array.from({ length: n }, (_, i) => (i === 0 ? first : rest)),
+      `${tpl.label} 으로 채웠습니다`
+    );
   }
 
   /** 회차마다 한 단위씩 올려서 */
@@ -255,30 +292,32 @@ export default function SimulatorClient({
               </div>
             </div>
 
-            {/* 언제부터 남는 장사가 되는지 */}
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="rounded-xl bg-tertiary-fixed px-3 py-2.5">
-                <div className="text-[15px] font-bold text-on-tertiary-fixed leading-tight">
-                  본전 되는 때
-                </div>
-                <div className="text-[22px] font-extrabold text-on-tertiary-fixed num-font leading-tight mt-0.5">
-                  {summary.breakEvenRound ? `${summary.breakEvenRound}회차` : "없음"}
-                </div>
-                <div className="text-[14px] font-semibold text-on-tertiary-fixed/80 leading-tight">
-                  받은 돈 ≥ 넣은 돈
-                </div>
-              </div>
-              <div className="rounded-xl bg-secondary-container px-3 py-2.5">
-                <div className="text-[15px] font-bold text-on-secondary-container leading-tight">
-                  수당으로 채우는 때
-                </div>
-                <div className="text-[22px] font-extrabold text-on-secondary-container num-font leading-tight mt-0.5">
-                  {summary.selfFundRound ? `${summary.selfFundRound}회차` : "없음"}
-                </div>
-                <div className="text-[14px] font-semibold text-on-secondary-container/80 leading-tight">
-                  다음 회차 매출 충당
-                </div>
-              </div>
+          </div>
+        </div>
+
+        {/* 언제부터 남는 장사가 되는지 — sticky 밖에 둔다.
+            sticky 카드가 화면의 절반을 넘게 덮으면 아래 내용이 안 보인다. */}
+        <div className="grid grid-cols-2 gap-2 mb-space-lg">
+          <div className="rounded-xl bg-tertiary-fixed px-3 py-2.5">
+            <div className="text-[15px] font-bold text-on-tertiary-fixed leading-tight">
+              본전 되는 때
+            </div>
+            <div className="text-[22px] font-extrabold text-on-tertiary-fixed num-font leading-tight mt-0.5">
+              {summary.breakEvenRound ? `${summary.breakEvenRound}회차` : "없음"}
+            </div>
+            <div className="text-[14px] font-semibold text-on-tertiary-fixed/80 leading-tight">
+              받은 돈 ≥ 넣은 돈
+            </div>
+          </div>
+          <div className="rounded-xl bg-secondary-container px-3 py-2.5">
+            <div className="text-[15px] font-bold text-on-secondary-container leading-tight">
+              수당으로 채우는 때
+            </div>
+            <div className="text-[22px] font-extrabold text-on-secondary-container num-font leading-tight mt-0.5">
+              {summary.selfFundRound ? `${summary.selfFundRound}회차` : "없음"}
+            </div>
+            <div className="text-[14px] font-semibold text-on-secondary-container/80 leading-tight">
+              다음 회차 매출 충당
             </div>
           </div>
         </div>
@@ -321,23 +360,63 @@ export default function SimulatorClient({
           {/* 2회차부터 채우는 법 */}
           <div>
             <p className="text-[19px] font-bold text-on-surface mb-2">
-              2회차부터는 어떻게 할까요?
+              2회차부터 얼마로 채울까요?
             </p>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {presets.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => fillRest(p)}
+                  className="min-h-[56px] px-4 rounded-xl bg-surface-container text-on-surface text-[18px] font-bold active:scale-95"
+                >
+                  {p / 10000}만
+                </button>
+              ))}
               <button
-                onClick={fillSame}
-                className="w-full min-h-[60px] rounded-xl bg-primary text-on-primary text-[19px] font-bold flex items-center justify-center gap-2 active:scale-[0.98]"
+                onClick={() => fillRest(rounds[0] ?? meta.min)}
+                className="min-h-[56px] px-4 rounded-xl bg-primary text-on-primary text-[18px] font-bold flex items-center gap-1.5 active:scale-95"
               >
-                <Icon name="content_copy" size={22} />
-                전부 1회차와 똑같이 ({won(rounds[0] ?? meta.min)}원)
+                <Icon name="content_copy" size={20} />
+                1회차와 같게
               </button>
+              {allowZero && (
+                <button
+                  onClick={() => fillRest(0)}
+                  className="min-h-[56px] px-4 rounded-xl bg-surface-container text-on-surface-variant text-[18px] font-bold active:scale-95"
+                >
+                  안 만들기
+                </button>
+              )}
               <button
                 onClick={fillStepUp}
-                className="w-full min-h-[60px] rounded-xl bg-surface-container text-on-surface text-[19px] font-bold flex items-center justify-center gap-2 active:scale-[0.98]"
+                className="min-h-[56px] px-4 rounded-xl bg-surface-container text-on-surface text-[18px] font-bold flex items-center gap-1.5 active:scale-95"
               >
-                <Icon name="trending_up" size={22} />
-                회차마다 {meta.step / 10000}만원씩 올리기
+                <Icon name="trending_up" size={20} />
+                {meta.step / 10000}만씩 올리기
               </button>
+            </div>
+          </div>
+
+          {/* 템플릿 — 자주 쓰는 조합을 한 번에 */}
+          <div>
+            <p className="text-[19px] font-bold text-on-surface mb-2">템플릿으로 한 번에</p>
+            <div className="flex items-stretch gap-2">
+              {TEMPLATES.map((tpl) => (
+                <button
+                  key={tpl.label}
+                  onClick={() => applyTemplate(tpl)}
+                  className="flex-1 min-h-[76px] rounded-xl border-2 border-primary/30 bg-primary-fixed/50 px-3 py-2.5 text-left active:scale-[0.97]"
+                >
+                  <span className="block text-[20px] font-extrabold text-on-primary-fixed leading-tight">
+                    {tpl.label}
+                  </span>
+                  <span className="block text-[15px] font-semibold text-on-primary-fixed/80 leading-tight mt-1">
+                    1회차 {manLabel(tpl.first)}
+                    <br />
+                    2회차부터 {manLabel(tpl.rest)}
+                  </span>
+                </button>
+              ))}
             </div>
           </div>
         </section>
