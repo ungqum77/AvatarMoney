@@ -38,6 +38,11 @@ export function netPoint(gross: number): number {
   return Math.round(gross * (1 - WITHHOLD));
 }
 
+/** 나이 k 의 달성률(배수). 100% = 1. 4회차 미만은 0. */
+export function achieveRate(k: number): number {
+  return RATE[k] ?? 0;
+}
+
 /** 아바타 한 개의 평생(1~18회차) 세전 합계 */
 export function avatarGrossLifetime(goal: number, cap: number): number {
   let sum = 0;
@@ -61,6 +66,96 @@ export const PLAN_META: Record<
   won11: { label: "11만원형", min: 110_000, step: 110_000, cap: CAP.won11, capLabel: "1억" },
   won33: { label: "33만원형", min: 330_000, step: 110_000, cap: CAP.won33, capLabel: "3억" },
 };
+
+// ============================================================================
+// 회차 상세 — 그 회차에 살아있는 아바타 하나하나가 얼마를 주는지, 계산식까지
+// ============================================================================
+
+/**
+ * 어떤 정산 회차에서 아바타 한 개가 만들어내는 몫 (계산식 분해).
+ *
+ * 금액은 모두 정수(원)다. 목표÷1.1 이 부동소수점에서 딱 떨어지지 않아
+ * (440,000/1.1 = 399999.99999999994) 화면에 그대로 쓰면 지저분하고,
+ * 항목을 각각 반올림하면 합이 산출액과 1원 어긋나 계산이 틀린 것처럼 보인다.
+ * 그래서 항목을 반올림하되 남는 1원은 가장 큰 항목이 흡수해서
+ * 판매 + 정착 + 달성 = 산출 이 화면에서 항상 정확히 맞게 한다.
+ */
+export interface AvatarShare {
+  bornRound: number; // 이 아바타를 만든 회차
+  age: number; // 그 회차 기준 아바타 나이 k
+  goal: number; // 그 아바타의 목표금액
+  base: number; // 기준매출 B = 목표 ÷ 1.1
+  sale: number; // 판매 = B × 32%
+  settle: number; // 정착 = k≥3 이면 10만
+  rate: number; // 달성률 배수 (k≥4 부터)
+  achieveRaw: number; // 달성 원값 = B × 배수 (상한 적용 전)
+  achieve: number; // 달성 = MIN(원값, 극점)
+  capped: boolean; // 극점 상한에 '잘렸는지' (같기만 하면 잘린 게 아니므로 false)
+  gross: number; // 산출 포인트(세전) = 판매 + 정착 + 달성
+  net: number; // 실지급(세후)
+}
+
+/** 한 정산 회차의 전부 */
+export interface RoundDetail {
+  round: number; // 정산 회차 R
+  gross: number; // 그 회차 산출 합(세전)
+  net: number; // 그 회차 실지급 합(세후)
+  shares: AvatarShare[]; // 살아있는 아바타별 몫 (나이 많은 순 = 먼저 만든 순)
+}
+
+/**
+ * 정산 회차 R 에서 살아있는 아바타들이 각각 얼마를 주는지 분해한다.
+ * 합계는 planSummary().inflow 의 같은 회차 값과 일치한다.
+ */
+export function roundDetail(goals: number[], cap: number, R: number): RoundDetail {
+  const shares: AvatarShare[] = [];
+  let gross = 0;
+  let net = 0;
+
+  for (let c = 1; c <= Math.min(R, goals.length); c++) {
+    const k = R - c + 1;
+    if (k < 1 || k > MAX_AGE) continue; // 아직 없거나 이미 소멸
+
+    const goal = goals[c - 1] || 0;
+    const baseExact = goal / 1.1;
+    const rate = k >= 4 ? achieveRate(k) : 0;
+    const achieveRawExact = baseExact * rate;
+    const achieveExact = k >= 4 ? Math.min(achieveRawExact, cap) : 0;
+    const settle = k >= 3 ? 100_000 : 0;
+
+    // 합계는 avatarPoint 를 그대로 쓴다. 분해값 때문에 합계가 흔들리면 안 된다.
+    const g = avatarPoint(goal, k, cap);
+    const n = netPoint(g);
+    gross += g;
+    net += n;
+
+    // 화면용 정수. 이중 반올림으로 생기는 차액은 큰 항목이 흡수해서
+    // 판매 + 정착 + 달성 = 산출 이 화면에서 항상 맞아떨어지게 한다.
+    let sale = Math.round(baseExact * 0.32);
+    let achieve = Math.round(achieveExact);
+    const drift = g - (sale + settle + achieve);
+    if (achieve > 0) achieve += drift;
+    else sale += drift;
+
+    shares.push({
+      bornRound: c,
+      age: k,
+      goal,
+      base: Math.round(baseExact),
+      sale,
+      settle,
+      rate,
+      achieveRaw: Math.round(achieveRawExact),
+      achieve,
+      // 상한과 '같기만' 하면 잘린 게 없으므로 걸린 것으로 보지 않는다.
+      capped: k >= 4 && achieveRawExact > cap + 0.5,
+      gross: g,
+      net: n,
+    });
+  }
+
+  return { round: R, gross, net, shares };
+}
 
 export interface InflowRow {
   round: number; // 정산 회차 R

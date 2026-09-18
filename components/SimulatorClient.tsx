@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { won } from "@/lib/format";
-import { planSummary, avatarNetLifetime, PLAN_META, type PlanType } from "@/lib/points";
+import { planSummary, avatarNetLifetime, PLAN_META, MAX_AGE, type PlanType } from "@/lib/points";
 import Icon from "@/components/Icon";
+import RoundDetailSheet from "@/components/RoundDetailSheet";
 
 export default function SimulatorClient({
   id,
@@ -26,6 +27,9 @@ export default function SimulatorClient({
   );
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
+  const [openRound, setOpenRound] = useState<number | null>(null);
+  // 빠른 채우기 직전 상태. 잘못 눌렀을 때 한 번 되돌릴 수 있게.
+  const [undoRounds, setUndoRounds] = useState<number[] | null>(null);
 
   const meta = PLAN_META[type];
   const presets =
@@ -51,6 +55,49 @@ export default function SimulatorClient({
   function changeType(t: PlanType) {
     setType(t);
     setRounds((rs) => rs.map((v) => Math.max(v, PLAN_META[t].min)));
+  }
+
+  // ── 빠른 채우기 ──────────────────────────────────────────────
+  // 18회차를 하나씩 손으로 넣는 건 너무 번거롭다.
+  // 1회차(본코드)만 정하면 나머지는 한 번에 채운다.
+
+  function bulk(next: number[], message: string) {
+    setUndoRounds(rounds);
+    setRounds(next);
+    setToast(message);
+    setTimeout(() => setToast(""), 4000);
+  }
+
+  /** 회차 수를 n개로. 늘릴 땐 마지막 값을 이어서 채운다. */
+  function setRoundCount(n: number) {
+    if (n === rounds.length) return;
+    const next = rounds.slice(0, n);
+    const last = rounds[rounds.length - 1] ?? meta.min;
+    while (next.length < n) next.push(last);
+    bulk(next, `${n}회차로 맞췄습니다`);
+  }
+
+  /** 2회차부터 1회차와 같은 금액으로 */
+  function fillSame() {
+    const first = rounds[0] ?? meta.min;
+    bulk(rounds.map(() => first), `전부 ${won(first)}원으로 채웠습니다`);
+  }
+
+  /** 회차마다 한 단위씩 올려서 */
+  function fillStepUp() {
+    const first = rounds[0] ?? meta.min;
+    bulk(
+      rounds.map((_, i) => clamp(first + i * meta.step)),
+      `회차마다 ${meta.step / 10000}만원씩 올렸습니다`
+    );
+  }
+
+  function undoBulk() {
+    if (!undoRounds) return;
+    setRounds(undoRounds);
+    setUndoRounds(null);
+    setToast("되돌렸습니다");
+    setTimeout(() => setToast(""), 2200);
   }
 
   async function save() {
@@ -144,6 +191,74 @@ export default function SimulatorClient({
           </div>
         </div>
 
+        {/* 빠른 채우기 — 18회차를 하나씩 넣지 않아도 되게 */}
+        <section className="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm mb-space-lg flex flex-col gap-4">
+          <div>
+            <h2 className="text-[21px] font-extrabold text-on-surface">빠른 채우기</h2>
+            <p className="text-[17px] text-on-surface-variant font-semibold mt-0.5">
+              1회차(본코드)만 정하면 나머지는 한 번에 채웁니다
+            </p>
+          </div>
+
+          {/* 몇 회차까지 */}
+          <div>
+            <p className="text-[19px] font-bold text-on-surface mb-2">몇 회차까지 할까요?</p>
+            <div className="flex items-center gap-2">
+              {[6, 12, MAX_AGE].map((n) => {
+                const on = rounds.length === n;
+                return (
+                  <button
+                    key={n}
+                    onClick={() => setRoundCount(n)}
+                    className={`flex-1 min-h-[56px] rounded-xl text-[19px] font-bold border-2 ${
+                      on
+                        ? "border-primary bg-primary-fixed text-on-primary-fixed"
+                        : "border-surface-container bg-surface-container-lowest text-on-surface"
+                    }`}
+                  >
+                    {n}회차
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[16px] text-on-surface-variant font-semibold mt-1.5">
+              지금 {rounds.length}회차 · 아바타는 18회차까지 삽니다
+            </p>
+          </div>
+
+          {/* 2회차부터 채우는 법 */}
+          <div>
+            <p className="text-[19px] font-bold text-on-surface mb-2">
+              2회차부터는 어떻게 할까요?
+            </p>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={fillSame}
+                className="w-full min-h-[60px] rounded-xl bg-primary text-on-primary text-[19px] font-bold flex items-center justify-center gap-2 active:scale-[0.98]"
+              >
+                <Icon name="content_copy" size={22} />
+                전부 1회차와 똑같이 ({won(rounds[0] ?? meta.min)}원)
+              </button>
+              <button
+                onClick={fillStepUp}
+                className="w-full min-h-[60px] rounded-xl bg-surface-container text-on-surface text-[19px] font-bold flex items-center justify-center gap-2 active:scale-[0.98]"
+              >
+                <Icon name="trending_up" size={22} />
+                회차마다 {meta.step / 10000}만원씩 올리기
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* 회차별 자세히 보기 */}
+        <button
+          onClick={() => setOpenRound(1)}
+          className="w-full min-h-[60px] rounded-2xl bg-secondary text-on-secondary text-[20px] font-extrabold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] mb-space-lg"
+        >
+          <Icon name="timeline" size={24} />
+          회차별 수당 자세히 보기
+        </button>
+
         {/* 회차 목록 헤더 */}
         <div className="flex items-center justify-between mb-space-sm">
           <div className="flex items-center gap-2">
@@ -171,6 +286,12 @@ export default function SimulatorClient({
                     {i + 1}회차
                   </span>
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setOpenRound(i + 1)}
+                      className="min-h-[44px] px-3 rounded-lg bg-surface-container text-primary text-label-md font-bold"
+                    >
+                      자세히
+                    </button>
                     <span className="text-body-lg-bold font-body-lg-bold text-secondary font-bold">
                       평생 +{won(lifetime)}원
                     </span>
@@ -263,10 +384,30 @@ export default function SimulatorClient({
       </main>
 
       {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] bg-inverse-surface text-inverse-on-surface px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 z-50">
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] bg-inverse-surface text-inverse-on-surface px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 z-[70]">
           <Icon name="check_circle" size={22} className="text-secondary-container" />
-          <span className="text-body-md font-body-md">{toast}</span>
+          <span className="flex-1 text-[18px] font-semibold">{toast}</span>
+          {undoRounds && (
+            <button
+              onClick={undoBulk}
+              className="min-h-[44px] px-3 rounded-lg bg-inverse-on-surface/15 text-inverse-on-surface text-[17px] font-bold shrink-0"
+            >
+              되돌리기
+            </button>
+          )}
         </div>
+      )}
+
+      {openRound !== null && (
+        <RoundDetailSheet
+          goals={rounds}
+          cap={meta.cap}
+          capLabel={meta.capLabel}
+          round={openRound}
+          lastRound={summary.inflow.length}
+          onRound={setOpenRound}
+          onClose={() => setOpenRound(null)}
+        />
       )}
     </div>
   );

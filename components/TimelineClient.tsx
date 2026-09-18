@@ -6,6 +6,7 @@ import { won, shortKRW } from "@/lib/format";
 import { planSummary, PLAN_META, type PlanType } from "@/lib/points";
 import AdBanner from "@/components/AdBanner";
 import Icon from "@/components/Icon";
+import RoundDetailSheet from "@/components/RoundDetailSheet";
 
 export interface TimelinePlan {
   id: number;
@@ -31,6 +32,10 @@ export default function TimelineClient({
 
   const rows = useMemo(() => (summary ? summary.inflow.filter((r) => r.net > 0) : []), [summary]);
   const maxNet = useMemo(() => rows.reduce((m, r) => Math.max(m, r.net), 0), [rows]);
+
+  // 회차별 자세히 보기
+  const [openRound, setOpenRound] = useState<number | null>(null);
+  const lastRound = summary ? summary.inflow.length : 0;
 
   return (
     <div className="flex flex-col w-full">
@@ -123,7 +128,12 @@ export default function TimelineClient({
                     const h = maxNet > 0 ? Math.max(6, (r.net / maxNet) * 100) : 6;
                     const peak = r.round === summary.peakRound;
                     return (
-                      <div key={r.round} className="flex-1 min-w-[32px] flex flex-col items-center justify-end h-full">
+                      <button
+                        key={r.round}
+                        onClick={() => setOpenRound(r.round)}
+                        aria-label={`${r.round}회차 자세히 보기`}
+                        className="flex-1 min-w-[32px] flex flex-col items-center justify-end h-full active:opacity-70"
+                      >
                         <span className={`text-label-sm font-bold mb-1 ${peak ? "text-secondary" : "text-on-surface-variant"}`}>
                           {shortKRW(r.net)}
                         </span>
@@ -132,13 +142,24 @@ export default function TimelineClient({
                           style={{ height: `${h}%` }}
                         />
                         <span className="text-label-sm text-on-surface-variant mt-1">{r.round}</span>
-                      </div>
+                      </button>
                     );
                   })}
                 </div>
               </div>
               <p className="text-label-sm text-on-surface-variant mt-2">
                 아바타가 회차를 거듭하며 성장(달성 보너스)해 후반 회차 수당이 크게 늘어납니다.
+              </p>
+
+              <button
+                onClick={() => setOpenRound(1)}
+                className="mt-4 w-full min-h-[60px] rounded-2xl bg-primary text-on-primary text-[20px] font-extrabold flex items-center justify-center gap-2 shadow-md active:scale-[0.98]"
+              >
+                <Icon name="tune" size={24} />
+                회차별 자세히 보기
+              </button>
+              <p className="text-[16px] text-on-surface-variant font-semibold mt-2 text-center">
+                회차마다 어떤 아바타가 얼마를 주는지, 계산식까지 봅니다
               </p>
             </section>
 
@@ -152,18 +173,20 @@ export default function TimelineClient({
               {rows.map((r) => {
                 const peak = r.round === summary.peakRound;
                 return (
-                  <div
+                  <button
                     key={r.round}
-                    className={`px-space-md py-3 flex items-center justify-between border-t border-surface-container ${
+                    onClick={() => setOpenRound(r.round)}
+                    className={`w-full min-h-[56px] px-space-md py-3 flex items-center justify-between gap-2 border-t border-surface-container text-left active:bg-surface-container ${
                       peak ? "bg-secondary/5" : ""
                     }`}
                   >
-                    <span className="text-body-lg font-body-lg text-on-surface font-bold w-14">{r.round}회</span>
-                    <span className={`text-body-lg-bold font-body-lg-bold ${peak ? "text-secondary" : "text-on-surface"}`}>
+                    <span className="text-body-lg font-body-lg text-on-surface font-bold w-14 shrink-0">{r.round}회</span>
+                    <span className={`flex-1 text-body-lg-bold font-body-lg-bold ${peak ? "text-secondary" : "text-on-surface"}`}>
                       {won(r.net)}원
                     </span>
                     <span className="text-body-md font-body-md text-on-surface-variant">{shortKRW(r.cumulative)}</span>
-                  </div>
+                    <Icon name="arrow_forward" size={20} className="text-outline" />
+                  </button>
                 );
               })}
             </section>
@@ -179,6 +202,18 @@ export default function TimelineClient({
           </>
         )}
       </main>
+
+      {openRound !== null && plan && (
+        <RoundDetailSheet
+          goals={plan.rounds}
+          cap={PLAN_META[plan.planType].cap}
+          capLabel={PLAN_META[plan.planType].capLabel}
+          round={openRound}
+          lastRound={lastRound}
+          onRound={setOpenRound}
+          onClose={() => setOpenRound(null)}
+        />
+      )}
     </div>
   );
 }
