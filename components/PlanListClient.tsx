@@ -230,9 +230,12 @@ function NewPlanModal({
   const [name, setName] = useState("");
   const [type, setType] = useState<PlanType>("won33");
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+    // z-[60]: 하단 탭바(z-50)보다 위에 와야 한다.
+    // 같은 z-50 이면 레이아웃에서 나중에 그려지는 탭바가 이겨서
+    // 시트 아래쪽의 '만들고 입력하러 가기' 버튼이 가려진다.
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40" onClick={onClose}>
       <div
-        className="w-full max-w-[480px] bg-surface rounded-t-3xl p-margin-mobile pb-safe flex flex-col gap-space-md"
+        className="w-full max-w-[480px] max-h-[88dvh] overflow-y-auto bg-surface rounded-t-3xl p-margin-mobile pb-safe flex flex-col gap-space-md"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
