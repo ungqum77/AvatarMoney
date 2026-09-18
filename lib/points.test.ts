@@ -243,13 +243,25 @@ describe("누적매출 / 누적수당", () => {
     expect(roundSalesTotal(goals, 4)).toBe(1_320_000); // 더 안 만들어도 유지
   });
 
-  it("누적매출은 그때까지 넣은 목표매출의 합", () => {
-    expect(roundDetail(goals, cap, 1).cumulativeSales).toBe(330_000);
-    expect(roundDetail(goals, cap, 2).cumulativeSales).toBe(770_000);
-    expect(roundDetail(goals, cap, 3).cumulativeSales).toBe(1_320_000);
-    // 4회차 이후로는 더 늘지 않는다
-    expect(roundDetail(goals, cap, 9).cumulativeSales).toBe(1_320_000);
-    expect(cumulativeSales(goals, 99)).toBe(1_320_000);
+  it("누적매출은 회차마다의 총매출을 전부 더한 값", () => {
+    // 1회차 110만 / 2회차 33만 / 3회차 33만
+    //   1회차 총매출 110만
+    //   2회차 총매출 110 + 33 = 143만  → 누적 253만
+    //   3회차 총매출 110 + 33 + 33 = 176만 → 누적 429만
+    const g = [1_100_000, 330_000, 330_000];
+    expect(roundSalesTotal(g, 1)).toBe(1_100_000);
+    expect(roundSalesTotal(g, 2)).toBe(1_430_000);
+    expect(roundSalesTotal(g, 3)).toBe(1_760_000);
+    expect(roundDetail(g, cap, 1).cumulativeSales).toBe(1_100_000);
+    expect(roundDetail(g, cap, 2).cumulativeSales).toBe(2_530_000);
+    expect(roundDetail(g, cap, 3).cumulativeSales).toBe(4_290_000);
+  });
+
+  it("아바타를 더 안 만들어도 살아있는 동안은 매 회차 매출을 채운다", () => {
+    const g = [1_100_000, 330_000, 330_000];
+    // 4회차엔 새 아바타가 없지만 셋 다 살아있으므로 176만을 또 넣는다
+    expect(roundSalesTotal(g, 4)).toBe(1_760_000);
+    expect(cumulativeSales(g, 4)).toBe(4_290_000 + 1_760_000);
   });
 
   it("누적수당은 타임라인의 누적값과 같다", () => {

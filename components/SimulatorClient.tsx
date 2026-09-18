@@ -3,18 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { won, shortKRW } from "@/lib/format";
+import { won, shortKRW, multiple } from "@/lib/format";
 import { planSummary, avatarNetLifetime, PLAN_META, MAX_AGE, type PlanType } from "@/lib/points";
 import Icon from "@/components/Icon";
 import RoundDetailSheet from "@/components/RoundDetailSheet";
-
-/** 넣은 돈 대비 몇 배인지. 221배처럼 적는 게 22,082% 보다 와닿는다. */
-function multipleLabel(invest: number, net: number): string {
-  if (invest <= 0) return "—";
-  const x = net / invest;
-  if (x < 10) return `${x.toFixed(1)}배`;
-  return `${Math.round(x).toLocaleString("ko-KR")}배`;
-}
 
 export default function SimulatorClient({
   id,
@@ -189,7 +181,7 @@ export default function SimulatorClient({
         <div className="sticky top-16 z-30 mb-space-lg">
           <div className="bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl p-space-md shadow-md">
             <div className="flex items-center justify-between bg-surface-container-low/60 rounded-xl px-3.5 py-2.5 mb-3">
-              <span className="text-label-md font-semibold text-on-surface-variant">총 투입 누적</span>
+              <span className="text-label-md font-semibold text-on-surface-variant">총 매출 누적</span>
               <span className="text-headline-md font-headline-md text-on-surface font-bold">{won(summary.totalInvest)}원</span>
             </div>
             <div className="px-1">
@@ -198,7 +190,7 @@ export default function SimulatorClient({
                 {/* 수익률이 22,000% 씩 나오면 가로로 넘치고 와닿지도 않는다. 몇 배인지로 적는다. */}
                 <span className="inline-flex items-center gap-1 bg-secondary-container text-on-secondary-container px-2.5 py-1 rounded-full text-[16px] font-bold shrink-0">
                   <Icon name="trending_up" size={16} />
-                  넣은 돈의 {multipleLabel(summary.totalInvest, summary.totalNet)}
+                  넣은 돈의 {multiple(summary.totalInvest, summary.totalNet)}
                 </span>
               </div>
               <div className="flex items-baseline gap-1.5 mt-0.5">

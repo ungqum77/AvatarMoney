@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { won, manwon } from "@/lib/format";
+import { won, manwon, multiple } from "@/lib/format";
 import type { PlanType } from "@/lib/points";
 import { PLAN_META } from "@/lib/points";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -154,13 +154,13 @@ export default function PlanListClient({
 
                 <div className="my-space-md p-3 rounded-xl bg-surface-container-low grid grid-cols-2 gap-3">
                   <div className="flex flex-col">
-                    <span className="text-label-sm text-on-surface-variant">총 투입 ({c.rounds}회차)</span>
+                    <span className="text-label-sm text-on-surface-variant">총 투입 (아바타 {c.rounds}개)</span>
                     <span className="text-body-lg-bold font-body-lg-bold text-on-surface mt-0.5">{won(c.totalInvest)}원</span>
                   </div>
                   <div className="flex flex-col text-right">
-                    <span className="text-label-sm text-on-surface-variant">예상 수익률</span>
+                    <span className="text-label-sm text-on-surface-variant">넣은 돈의</span>
                     <span className="text-body-lg-bold font-body-lg-bold text-secondary font-bold mt-0.5">
-                      +{c.roi.toFixed(1)}%
+                      {multiple(c.totalInvest, c.totalNet)}
                     </span>
                   </div>
                   <div className="col-span-2 pt-2 flex flex-col border-t border-surface-container">

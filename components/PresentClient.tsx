@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { won, shortKRW } from "@/lib/format";
+import { won, shortKRW, multiple } from "@/lib/format";
 import { planSummary, PLAN_META, type PlanType } from "@/lib/points";
 import Icon from "@/components/Icon";
 
@@ -27,7 +27,8 @@ export default function PresentClient({
   const summary = useMemo(() => planSummary(plan.rounds, PLAN_META[plan.planType].cap), [plan]);
 
   const firstRound = summary.inflow.find((r) => r.net > 0)?.round ?? 1;
-  const breakeven = summary.inflow.find((r) => r.cumulative >= summary.totalInvest)?.round ?? null;
+  // 누적수당이 누적매출을 따라잡는 회차. 시뮬레이터의 '본전 되는 때' 와 같은 값이어야 한다.
+  const breakeven = summary.breakEvenRound;
 
   return (
     <div className="min-h-screen w-full bg-slate-950 text-white flex flex-col relative overflow-x-hidden">
@@ -92,7 +93,7 @@ export default function PresentClient({
               <div className="w-11 h-11 rounded-full bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-300 animate-bounce">
                 <Icon name="south" size={24} />
               </div>
-              <span className="mt-1 text-xs font-bold text-indigo-300 tracking-wider">예상 수익률 +{summary.roi.toFixed(1)}%</span>
+              <span className="mt-1 text-xs font-bold text-indigo-300 tracking-wider">넣은 돈의 {multiple(summary.totalInvest, summary.totalNet)}</span>
             </div>
 
             <div className="bg-gradient-to-b from-emerald-950/70 to-slate-950/80 rounded-2xl p-5 border-2 border-emerald-500/60 shadow-[0_0_30px_rgba(16,185,129,0.25)]">
@@ -123,9 +124,9 @@ export default function PresentClient({
           <section className="bg-slate-900/90 rounded-3xl p-5 border border-slate-800/90">
             <div className="grid grid-cols-2 gap-3 text-center">
               <Milestone label="첫 수령" value={`${firstRound}회차`} sub="즉시 시작" />
-              <Milestone label="원금 회수" value={breakeven ? `${breakeven}회차` : "—"} sub="누적 = 투입" accent />
+              <Milestone label="원금 회수" value={breakeven ? `${breakeven}회차` : "—"} sub="누적수당 = 누적매출" accent />
               <Milestone label="최고 정산 회차" value={`${summary.peakRound}회차`} sub={`${shortKRW(Math.max(...summary.inflow.map((r) => r.net)))}원`} />
-              <Milestone label="총 회차 수" value={`${plan.rounds.length}회`} sub={`${PLAN_META[plan.planType].label}`} />
+              <Milestone label="만드는 아바타" value={`${plan.rounds.length}개`} sub={`${PLAN_META[plan.planType].label}`} />
             </div>
           </section>
         </main>

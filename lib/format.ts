@@ -36,3 +36,14 @@ export function formatPhone(raw: string): string {
 export function normalizePhone(raw: string): string {
   return (raw || "").replace(/[^0-9]/g, "");
 }
+
+/**
+ * 넣은 돈 대비 몇 배인지. 수익률은 12,000% 씩 나와서 가로로 넘치고
+ * 와닿지도 않는다. '123배' 처럼 적는다.
+ */
+export function multiple(invest: number, net: number): string {
+  if (invest <= 0) return "—";
+  const x = net / invest;
+  if (x < 10) return `${x.toFixed(1)}배`;
+  return `${Math.round(x).toLocaleString("ko-KR")}배`;
+}

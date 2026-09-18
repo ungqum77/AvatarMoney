@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { won, shortKRW } from "@/lib/format";
+import { won, shortKRW, multiple } from "@/lib/format";
 import { planSummary, PLAN_META, MAX_AGE, type PlanType } from "@/lib/points";
 import AdBanner from "@/components/AdBanner";
 import Icon from "@/components/Icon";
@@ -106,7 +106,7 @@ export default function TimelineClient({
                   <Icon name="trending_up" size={20} className="text-primary" />총 예상 수당(실지급)
                 </span>
                 <span className="px-2.5 py-1 rounded-full bg-secondary-container/60 text-on-secondary-container text-label-sm font-bold">
-                  +{summary.roi.toFixed(1)}%
+                  넣은 돈의 {multiple(summary.totalInvest, summary.totalNet)}
                 </span>
               </div>
               <div className="flex items-baseline gap-1">
@@ -124,7 +124,7 @@ export default function TimelineClient({
               <div className="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm">
                 <span className="text-label-md font-semibold text-on-surface-variant">총 투입금</span>
                 <div className="mt-2 text-headline-md font-headline-md text-on-surface font-extrabold num-font">{won(summary.totalInvest)}</div>
-                <span className="text-label-sm text-on-surface-variant">원 · {plan.rounds.length}회 투입</span>
+                <span className="text-label-sm text-on-surface-variant">원 · 아바타 {plan.rounds.length}개</span>
               </div>
               <div className="p-space-md rounded-2xl bg-primary-fixed/40 shadow-sm">
                 <span className="text-label-md font-semibold text-primary">최고 정산 회차</span>

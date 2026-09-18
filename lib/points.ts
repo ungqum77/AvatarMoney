@@ -124,10 +124,14 @@ export function roundSalesTotal(goals: number[], R: number): number {
   return sum;
 }
 
-/** 회차 R 까지 새로 만든 아바타들의 목표매출 합 */
+/**
+ * 회차 R 까지 넣은 매출 누계 = 회차마다의 총매출을 전부 더한 값.
+ * 매 회차 살아있는 아바타 전부의 매출을 채워야 하므로 한 번만 세면 안 된다.
+ *   1회차 110만 · 2회차 33만 → 1회차 110만 + 2회차 143만 = 253만
+ */
 export function cumulativeSales(goals: number[], R: number): number {
   let sum = 0;
-  for (let r = 1; r <= Math.min(R, goals.length); r++) sum += goals[r - 1] || 0;
+  for (let r = 1; r <= R; r++) sum += roundSalesTotal(goals, r);
   return sum;
 }
 
@@ -214,7 +218,7 @@ export interface InflowRow {
 }
 
 export interface PlanSummary {
-  totalInvest: number; // 총 투입 = Σ 목표금액
+  totalInvest: number; // 총 투입 = 회차마다의 총매출을 전부 더한 값
   totalGross: number; // 총 산출(세전)
   totalNet: number; // 총 실지급(세후) — 화면 대표 숫자
   roi: number; // 수익률 % = (net − invest) / invest × 100
@@ -243,7 +247,9 @@ export interface PlanSummary {
  */
 export function planSummary(goals: number[], cap: number): PlanSummary {
   const n = goals.length;
-  const totalInvest = goals.reduce((a, b) => a + (b || 0), 0);
+  const lastR = n + MAX_AGE - 1; // 마지막 아바타가 18회 사는 회차까지
+  // 매 회차 살아있는 아바타 전부의 매출을 채운다. 한 번만 세면 안 된다.
+  const totalInvest = cumulativeSales(goals, lastR);
 
   // 각 아바타(회차 c) 평생 실지급/세전
   const perAvatarNet = goals.map((g) => avatarNetLifetime(g, cap));
@@ -255,7 +261,6 @@ export function planSummary(goals: number[], cap: number): PlanSummary {
   let cumulative = 0;
   let peakRound = 1;
   let peakVal = -1;
-  const lastR = n + MAX_AGE - 1;
   for (let R = 1; R <= lastR; R++) {
     let net = 0;
     let gross = 0;
