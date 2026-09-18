@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import Script from "next/script";
+import SwRegister from "@/components/SwRegister";
 import "./globals.css";
 
 const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
@@ -56,6 +57,9 @@ export default function RootLayout({
             strategy="afterInteractive"
           />
         ) : null}
+        {/* 로그인 전에도 앱으로 설치할 수 있어야 하므로 루트에서 등록한다.
+            (app) 그룹에만 두면 로그인 화면에서는 서비스워커가 안 뜬다. */}
+        <SwRegister />
         {children}
       </body>
     </html>

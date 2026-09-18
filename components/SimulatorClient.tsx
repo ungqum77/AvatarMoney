@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { won, shortKRW, multiple } from "@/lib/format";
+import { won, shortKRW, multiple, bigWon } from "@/lib/format";
 import {
   planSummary,
   avatarNetLifetime,
@@ -195,7 +195,7 @@ export default function SimulatorClient({
   return (
     <div className="flex flex-col w-full">
       {/* 헤더 */}
-      <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.03)] pt-safe">
+      <header className="sticky top-0 z-40 bg-surface shadow-[0_1px_8px_rgba(0,0,0,0.03)] pt-safe">
         <div className="h-16 px-margin-mobile flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Link href="/plans" className="w-11 h-11 flex items-center justify-center rounded-full text-on-surface active:bg-surface-container">
@@ -263,10 +263,10 @@ export default function SimulatorClient({
 
         {/* 요약 (sticky) */}
         <div className="sticky top-16 z-30 mb-space-lg">
-          <div className="bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl p-space-md shadow-md">
+          <div className="bg-surface-container-lowest rounded-2xl p-space-md shadow-md">
             <div className="flex items-center justify-between bg-surface-container-low/60 rounded-xl px-3.5 py-2.5 mb-3">
               <span className="text-label-md font-semibold text-on-surface-variant">총 매출 누적</span>
-              <span className="text-headline-md font-headline-md text-on-surface font-bold">{won(summary.totalInvest)}원</span>
+              <span className="text-headline-md font-headline-md text-on-surface font-bold">{bigWon(summary.totalInvest)}원</span>
             </div>
             <div className="px-1">
               <div className="flex items-center justify-between gap-2">
@@ -279,7 +279,7 @@ export default function SimulatorClient({
               </div>
               <div className="flex items-baseline gap-1.5 mt-0.5">
                 <span className="text-display-currency-mobile font-display-currency-mobile text-secondary font-extrabold num-font">
-                  {won(summary.totalNet)}
+                  {bigWon(summary.totalNet)}
                 </span>
                 <span className="text-body-lg-bold font-body-lg-bold text-secondary">원</span>
               </div>

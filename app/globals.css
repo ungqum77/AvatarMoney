@@ -37,15 +37,15 @@ body {
 /* 눈길을 끄는 깜빡임.
    글자가 사라지면 60대에게는 오히려 읽기 어려우므로, 글자는 계속 보이게 두고
    밝기와 바깥 테두리만 깜빡인다. */
+/* filter 는 매 프레임 요소를 다시 그려서 스크롤이 버벅인다.
+   테두리(box-shadow)만 퍼지게 해도 눈에 충분히 띈다. */
 @keyframes attention-blink {
   0%,
   100% {
-    box-shadow: 0 0 0 0 rgba(0, 108, 73, 0.65);
-    filter: brightness(1);
+    box-shadow: 0 0 0 0 rgba(0, 108, 73, 0.7);
   }
   50% {
     box-shadow: 0 0 0 12px rgba(0, 108, 73, 0);
-    filter: brightness(1.18);
   }
 }
 .attention-blink {

@@ -18,7 +18,7 @@ export default function BottomNav() {
     return pathname.startsWith(href);
   }
   return (
-    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 pb-safe bg-surface/90 backdrop-blur-xl shadow-[0_-4px_16px_0_rgba(15,23,42,0.06)]">
+    <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] z-50 pb-safe bg-surface shadow-[0_-4px_16px_0_rgba(15,23,42,0.06)]">
       <div className="h-16 flex items-center justify-around px-space-xs">
         {TABS.map((t) => {
           const on = active(t.href);

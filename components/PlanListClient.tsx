@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { won, manwon, multiple } from "@/lib/format";
+import { manwon, multiple, bigWon } from "@/lib/format";
 import type { PlanType } from "@/lib/points";
 import { PLAN_META } from "@/lib/points";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -75,7 +75,7 @@ export default function PlanListClient({
   return (
     <div className="flex flex-col w-full">
       {/* 헤더 */}
-      <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.03)] pt-safe">
+      <header className="sticky top-0 z-40 bg-surface shadow-[0_1px_8px_rgba(0,0,0,0.03)] pt-safe">
         <div className="h-16 px-margin-mobile flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
@@ -155,7 +155,7 @@ export default function PlanListClient({
                 <div className="my-space-md p-3 rounded-xl bg-surface-container-low grid grid-cols-2 gap-3">
                   <div className="flex flex-col">
                     <span className="text-label-sm text-on-surface-variant">총 투입 (아바타 {c.rounds}개)</span>
-                    <span className="text-body-lg-bold font-body-lg-bold text-on-surface mt-0.5">{won(c.totalInvest)}원</span>
+                    <span className="text-body-lg-bold font-body-lg-bold text-on-surface mt-0.5">{bigWon(c.totalInvest)}원</span>
                   </div>
                   <div className="flex flex-col text-right">
                     <span className="text-label-sm text-on-surface-variant">넣은 돈의</span>
@@ -167,7 +167,7 @@ export default function PlanListClient({
                     <span className="text-label-sm text-on-surface-variant">총 예상 수당(실지급)</span>
                     <div className="flex items-baseline gap-1 mt-0.5">
                       <span className="text-display-currency-mobile font-display-currency-mobile text-primary font-extrabold">
-                        {won(c.totalNet)}
+                        {bigWon(c.totalNet)}
                       </span>
                       <span className="text-headline-md font-headline-md text-primary font-bold">원</span>
                     </div>

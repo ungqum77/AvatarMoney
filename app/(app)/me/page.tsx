@@ -11,7 +11,7 @@ export default async function MePage() {
 
   return (
     <div className="flex flex-col w-full">
-      <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.03)] pt-safe">
+      <header className="sticky top-0 z-40 bg-surface shadow-[0_1px_8px_rgba(0,0,0,0.03)] pt-safe">
         <div className="h-16 px-margin-mobile flex items-center gap-2">
           <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
             <Icon name="account_circle" size={20} className="text-on-primary" />

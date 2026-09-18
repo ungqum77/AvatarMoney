@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth/session";
 import BottomNav from "@/components/BottomNav";
-import SwRegister from "@/components/SwRegister";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +14,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           80px 만 비우면 맨 아래 버튼이 4px 잘리므로 6rem 으로 여유를 둔다. */}
       <div className="flex-1 pb-[calc(6rem+env(safe-area-inset-bottom,0px))]">{children}</div>
       <BottomNav />
-      <SwRegister />
     </div>
   );
 }

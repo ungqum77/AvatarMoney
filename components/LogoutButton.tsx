@@ -10,6 +10,16 @@ export default function LogoutButton() {
   async function logout() {
     setBusy(true);
     await fetch("/api/auth/logout", { method: "POST" });
+    // 서비스워커가 캐시해 둔 내 플랜 화면을 지운다.
+    // 안 지우면 오프라인에서 다음 사람에게 이전 화면이 보인다.
+    try {
+      if ("caches" in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k)));
+      }
+    } catch {
+      /* 캐시를 못 지워도 로그아웃은 진행한다 */
+    }
     router.push("/login");
     router.refresh();
   }

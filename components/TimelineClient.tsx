@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { won, shortKRW, multiple } from "@/lib/format";
+import { won, shortKRW, multiple, bigWon } from "@/lib/format";
 import { planSummary, PLAN_META, MAX_AGE, type PlanType } from "@/lib/points";
 import AdBanner from "@/components/AdBanner";
 import Icon from "@/components/Icon";
@@ -56,7 +56,7 @@ export default function TimelineClient({
 
   return (
     <div className="flex flex-col w-full">
-      <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.03)] pt-safe">
+      <header className="sticky top-0 z-40 bg-surface shadow-[0_1px_8px_rgba(0,0,0,0.03)] pt-safe">
         <div className="h-16 px-margin-mobile flex items-center gap-2">
           <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
             <Icon name="timeline" size={20} className="text-on-primary" />
@@ -111,19 +111,19 @@ export default function TimelineClient({
               </div>
               <div className="flex items-baseline gap-1">
                 <span className="text-display-currency-mobile font-display-currency-mobile text-on-surface font-extrabold num-font">
-                  {won(summary.totalNet)}
+                  {bigWon(summary.totalNet)}
                 </span>
                 <span className="text-headline-md font-headline-md text-on-surface font-bold">원</span>
               </div>
               <p className="text-body-md font-body-md text-secondary mt-2 font-semibold">
-                원금 대비 {won(summary.totalNet - summary.totalInvest)}원 순수익 예상
+                원금 대비 {bigWon(summary.totalNet - summary.totalInvest)}원 순수익 예상
               </p>
             </section>
 
             <div className="grid grid-cols-2 gap-space-md">
               <div className="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm">
                 <span className="text-label-md font-semibold text-on-surface-variant">총 투입금</span>
-                <div className="mt-2 text-headline-md font-headline-md text-on-surface font-extrabold num-font">{won(summary.totalInvest)}</div>
+                <div className="mt-2 text-headline-md font-headline-md text-on-surface font-extrabold num-font">{bigWon(summary.totalInvest)}</div>
                 <span className="text-label-sm text-on-surface-variant">원 · 아바타 {plan.rounds.length}개</span>
               </div>
               <div className="p-space-md rounded-2xl bg-primary-fixed/40 shadow-sm">
@@ -140,7 +140,8 @@ export default function TimelineClient({
                 <span className="text-label-sm text-on-surface-variant">유입 회차 {rows.length}개</span>
               </div>
               <div className="overflow-x-auto pb-2">
-                <div className="flex items-end gap-2 h-48 min-w-full" style={{ width: `max(100%, ${rows.length * 40}px)` }}>
+                {/* 막대가 좁으면 '14억 2,400만' 같은 라벨이 옆 막대와 겹친다 */}
+                <div className="flex items-end gap-2 h-48 min-w-full" style={{ width: `max(100%, ${rows.length * 72}px)` }}>
                   {rows.map((r) => {
                     const h = maxNet > 0 ? Math.max(6, (r.net / maxNet) * 100) : 6;
                     const peak = r.round === peakRound;
@@ -149,7 +150,7 @@ export default function TimelineClient({
                         key={r.round}
                         onClick={() => setOpenRound(r.round)}
                         aria-label={`${r.round}회차 자세히 보기`}
-                        className="flex-1 min-w-[32px] flex flex-col items-center justify-end h-full active:opacity-70"
+                        className="flex-1 min-w-[64px] flex flex-col items-center justify-end h-full active:opacity-70"
                       >
                         <span className={`text-label-sm font-bold mb-1 ${peak ? "text-secondary" : "text-on-surface-variant"}`}>
                           {shortKRW(r.net)}

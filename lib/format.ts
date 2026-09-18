@@ -47,3 +47,14 @@ export function multiple(invest: number, net: number): string {
   if (x < 10) return `${x.toFixed(1)}배`;
   return `${Math.round(x).toLocaleString("ko-KR")}배`;
 }
+
+/**
+ * 화면의 대표 금액용. 억이 넘어가면 축약한다.
+ *   36,190,555,200 → "361억 9,055만"
+ * 11자리 숫자는 카드 밖으로 삐져나오고, 어르신이 쉼표를 세어 읽어야 한다.
+ * 억 단위 축약이 한국말로 읽는 방식과도 같다.
+ */
+export function bigWon(n: number): string {
+  const v = Math.round(n || 0);
+  return Math.abs(v) >= 100_000_000 ? shortKRW(v) : won(v);
+}

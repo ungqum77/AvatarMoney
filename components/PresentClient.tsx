@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { won, shortKRW, multiple } from "@/lib/format";
+import { shortKRW, multiple, bigWon } from "@/lib/format";
 import { planSummary, PLAN_META, type PlanType } from "@/lib/points";
 import Icon from "@/components/Icon";
 
@@ -85,7 +85,7 @@ export default function PresentClient({
             <div className="bg-slate-950/70 rounded-2xl p-4 border border-slate-800/80">
               <span className="text-xs font-bold uppercase tracking-widest text-slate-400 block mb-1">총 투입 자금</span>
               <div className="text-3xl font-extrabold text-slate-200 num-font">
-                {won(summary.totalInvest)} <span className="text-xl font-bold text-slate-400">원</span>
+                {bigWon(summary.totalInvest)} <span className="text-xl font-bold text-slate-400">원</span>
               </div>
             </div>
 
@@ -102,10 +102,10 @@ export default function PresentClient({
                 <span className="text-sm font-extrabold text-emerald-400 tracking-wide uppercase">총 예상 누적 수당(실지급)</span>
               </div>
               <div className="text-[42px] leading-tight font-black text-emerald-400 num-font drop-shadow-md">
-                {won(summary.totalNet)} <span className="text-2xl font-bold text-emerald-300">원</span>
+                {bigWon(summary.totalNet)} <span className="text-2xl font-bold text-emerald-300">원</span>
               </div>
               <p className="mt-2 text-sm font-bold text-slate-300 bg-slate-900/80 py-1.5 px-3 rounded-lg inline-block border border-slate-800">
-                순수익 <span className="text-emerald-400 font-extrabold">+{won(summary.totalNet - summary.totalInvest)}원</span>
+                순수익 <span className="text-emerald-400 font-extrabold">+{bigWon(summary.totalNet - summary.totalInvest)}원</span>
               </p>
             </div>
 
