@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { won } from "@/lib/format";
+import { won, shortKRW } from "@/lib/format";
 import { roundDetail, WITHHOLD, MAX_AGE, type AvatarShare } from "@/lib/points";
 import Icon from "@/components/Icon";
 
@@ -135,6 +135,12 @@ export default function RoundDetailSheet({
           <p className="text-[17px] font-semibold opacity-90 mt-1">
             세금 떼기 전 {won(detail.gross)}원
           </p>
+          <div className="mt-3 pt-3 border-t border-on-primary/25 flex items-center justify-between">
+            <span className="text-[18px] font-semibold opacity-90">이 회차 매출 (넣는 돈)</span>
+            <span className="text-[20px] font-extrabold num-font">
+              {detail.sales > 0 ? `${won(detail.sales)}원` : "없음"}
+            </span>
+          </div>
         </section>
 
         {detail.shares.length === 0 ? (
@@ -181,23 +187,92 @@ export default function RoundDetailSheet({
 
         <ExpiredNote expired={expired} />
 
-        {/* 본문 안에도 회차 이동. 아래까지 읽고 나서 위로 안 올라가도 되게. */}
+        {/* 매출·수당 누계 */}
+        <section className="mt-4 rounded-2xl bg-surface-container-lowest shadow-sm overflow-hidden">
+          <div className="px-space-md py-2.5 bg-surface-container-low">
+            <h3 className="text-[19px] font-extrabold text-on-surface">내 {round}회차까지 누적</h3>
+          </div>
+
+          <div className="px-space-md py-3 flex items-center justify-between gap-2">
+            <span className="text-[19px] font-bold text-on-surface">
+              누적 매출
+              <span className="text-[16px] font-semibold text-on-surface-variant ml-1.5">넣은 돈</span>
+            </span>
+            <span className="text-[21px] font-extrabold text-on-surface num-font">
+              {won(detail.cumulativeSales)}원
+            </span>
+          </div>
+
+          <div className="px-space-md py-3 flex items-center justify-between gap-2 border-t-2 border-surface-container">
+            <span className="text-[19px] font-bold text-on-surface">
+              누적 수당
+              <span className="text-[16px] font-semibold text-on-surface-variant ml-1.5">받은 돈</span>
+            </span>
+            <span className="text-[21px] font-extrabold text-secondary num-font">
+              {won(detail.cumulativeNet)}원
+            </span>
+          </div>
+
+          {/* 누적매출 − 누적수당 */}
+          <div
+            className={`px-space-md py-3.5 border-t-2 border-surface-container ${
+              detail.salesMinusNet > 0 ? "bg-tertiary-fixed" : "bg-secondary-container"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className={`text-[19px] font-extrabold ${
+                  detail.salesMinusNet > 0 ? "text-on-tertiary-fixed" : "text-on-secondary-container"
+                }`}
+              >
+                누적매출 − 누적수당
+              </span>
+              <span
+                className={`text-[22px] font-extrabold num-font ${
+                  detail.salesMinusNet > 0 ? "text-on-tertiary-fixed" : "text-on-secondary-container"
+                }`}
+              >
+                {detail.salesMinusNet < 0 ? "−" : ""}
+                {won(Math.abs(detail.salesMinusNet))}원
+              </span>
+            </div>
+            <p
+              className={`text-[17px] font-semibold mt-1 ${
+                detail.salesMinusNet > 0 ? "text-on-tertiary-fixed" : "text-on-secondary-container"
+              }`}
+            >
+              {detail.salesMinusNet > 0
+                ? `아직 ${won(detail.salesMinusNet)}원 더 받아야 넣은 돈만큼 됩니다`
+                : detail.salesMinusNet === 0
+                  ? "넣은 돈을 정확히 다 받았습니다"
+                  : `넣은 돈을 다 받고 ${won(-detail.salesMinusNet)}원 더 받았습니다`}
+            </p>
+          </div>
+        </section>
+
+        {/* 본문 안에도 회차 이동. 아래까지 읽고 나서 위로 안 올라가도 되게.
+            갈 회차의 매출을 함께 적어 누르기 전에 보이게 한다. */}
         <nav className="mt-5 mb-8 flex items-stretch gap-2">
           <button
             onClick={() => onRound(round - 1)}
             disabled={round <= 1}
-            className="flex-1 min-h-[68px] rounded-2xl bg-surface-container-lowest border-2 border-surface-container text-on-surface flex flex-col items-center justify-center active:scale-[0.97] disabled:opacity-30"
+            className="flex-1 min-h-[88px] rounded-2xl bg-surface-container-lowest border-2 border-surface-container text-on-surface flex flex-col items-center justify-center gap-0.5 active:scale-[0.97] disabled:opacity-30"
           >
             <span className="text-[16px] font-semibold text-on-surface-variant flex items-center gap-1">
               <Icon name="arrow_back" size={16} />
               이전
             </span>
             <span className="text-[21px] font-extrabold">{round > 1 ? `${round - 1}회차` : "처음"}</span>
+            {round > 1 && (
+              <span className="text-[15px] font-semibold text-on-surface-variant">
+                {salesLabel(goals, round - 1)}
+              </span>
+            )}
           </button>
           <button
             onClick={() => onRound(round + 1)}
             disabled={round >= lastRound}
-            className="flex-[2] min-h-[68px] rounded-2xl bg-primary text-on-primary flex flex-col items-center justify-center shadow-md active:scale-[0.97] disabled:opacity-30"
+            className="flex-[2] min-h-[88px] rounded-2xl bg-primary text-on-primary flex flex-col items-center justify-center gap-0.5 shadow-md active:scale-[0.97] disabled:opacity-30"
           >
             <span className="text-[16px] font-semibold opacity-90 flex items-center gap-1">
               다음 회차 보기
@@ -206,11 +281,22 @@ export default function RoundDetailSheet({
             <span className="text-[23px] font-extrabold">
               {round < lastRound ? `${round + 1}회차` : "마지막"}
             </span>
+            {round < lastRound && (
+              <span className="text-[15px] font-semibold opacity-90">
+                {salesLabel(goals, round + 1)}
+              </span>
+            )}
           </button>
         </nav>
       </div>
     </div>
   );
+}
+
+/** 회차 이동 버튼에 적을 그 회차 매출. 플랜 회차를 넘기면 더 넣지 않는다. */
+function salesLabel(goals: number[], r: number): string {
+  const g = r <= goals.length ? goals[r - 1] || 0 : 0;
+  return g > 0 ? `매출 ${shortKRW(g)}원` : "투입 없음";
 }
 
 /** 수명(18회차)이 다해 빠진 아바타를 알려준다. 개수가 왜 줄었는지 보이게. */

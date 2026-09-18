@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { avatarPoint, netPoint, CAP, roundDetail, planSummary, MAX_AGE } from "./points";
+import { avatarPoint, netPoint, CAP, roundDetail, planSummary, cumulativeSales, MAX_AGE } from "./points";
 
 // docs/계산규칙-avatarPoint.md 의 검증 정답표를 그대로 고정.
 describe("avatarPoint — 극점 3억(33만형)", () => {
@@ -200,5 +200,73 @@ describe("아바타 수명 — 개인 회차 기준", () => {
     expect(d35.shares).toHaveLength(1);
     expect(d35.shares[0]).toMatchObject({ bornRound: 18, age: 18 });
     expect(roundDetail(goals, cap, 36).shares).toHaveLength(0);
+  });
+});
+
+// ============================================================================
+// 매출·수당 누계
+// ============================================================================
+describe("누적매출 / 누적수당", () => {
+  const cap = CAP.won33;
+  const goals = [330_000, 440_000, 550_000];
+
+  it("이 회차 매출 = 그 회차에 넣은 목표매출", () => {
+    expect(roundDetail(goals, cap, 1).sales).toBe(330_000);
+    expect(roundDetail(goals, cap, 2).sales).toBe(440_000);
+    expect(roundDetail(goals, cap, 3).sales).toBe(550_000);
+  });
+
+  it("플랜 회차를 넘기면 더 넣지 않으므로 매출 0", () => {
+    expect(roundDetail(goals, cap, 4).sales).toBe(0);
+    expect(roundDetail(goals, cap, 10).sales).toBe(0);
+  });
+
+  it("누적매출은 그때까지 넣은 목표매출의 합", () => {
+    expect(roundDetail(goals, cap, 1).cumulativeSales).toBe(330_000);
+    expect(roundDetail(goals, cap, 2).cumulativeSales).toBe(770_000);
+    expect(roundDetail(goals, cap, 3).cumulativeSales).toBe(1_320_000);
+    // 4회차 이후로는 더 늘지 않는다
+    expect(roundDetail(goals, cap, 9).cumulativeSales).toBe(1_320_000);
+    expect(cumulativeSales(goals, 99)).toBe(1_320_000);
+  });
+
+  it("누적수당은 타임라인의 누적값과 같다", () => {
+    const summary = planSummary(goals, cap);
+    for (const row of summary.inflow) {
+      expect(roundDetail(goals, cap, row.round).cumulativeNet).toBe(row.cumulative);
+    }
+  });
+
+  it("누적수당은 그 회차까지의 회차별 수당을 더한 값", () => {
+    let running = 0;
+    for (let R = 1; R <= goals.length + MAX_AGE; R++) {
+      const d = roundDetail(goals, cap, R);
+      running += d.net;
+      expect(d.cumulativeNet).toBe(running);
+    }
+  });
+
+  it("누적매출 − 누적수당", () => {
+    for (let R = 1; R <= goals.length + MAX_AGE; R++) {
+      const d = roundDetail(goals, cap, R);
+      expect(d.salesMinusNet).toBe(d.cumulativeSales - d.cumulativeNet);
+    }
+  });
+
+  it("초반에는 아직 회수 전(양수), 나중에는 수당이 넘어선다(음수)", () => {
+    // 1회차: 33만 넣고 92,832 받음 → 아직 237,168 회수 전
+    const d1 = roundDetail(goals, cap, 1);
+    expect(d1.salesMinusNet).toBe(330_000 - 92_832);
+    expect(d1.salesMinusNet).toBeGreaterThan(0);
+    // 마지막 회차에는 수당이 훨씬 크다
+    const dLast = roundDetail(goals, cap, goals.length + MAX_AGE - 1);
+    expect(dLast.salesMinusNet).toBeLessThan(0);
+  });
+
+  it("마지막 회차의 누적값 = 플랜 전체 합계", () => {
+    const summary = planSummary(goals, cap);
+    const last = roundDetail(goals, cap, summary.inflow.length);
+    expect(last.cumulativeSales).toBe(summary.totalInvest);
+    expect(last.cumulativeNet).toBe(summary.totalNet);
   });
 });

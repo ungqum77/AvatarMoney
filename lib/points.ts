@@ -101,6 +101,20 @@ export interface RoundDetail {
   gross: number; // 그 회차 산출 합(세전)
   net: number; // 그 회차 실지급 합(세후)
   shares: AvatarShare[]; // 살아있는 아바타별 몫 (나이 많은 순 = 먼저 만든 순)
+
+  // 매출(= 그 회차에 넣는 목표매출)과 수당의 누계.
+  // 회차마다 아바타를 하나 만드므로 그 회차 매출은 그 회차 목표매출 하나다.
+  sales: number; // 이 회차 매출 (플랜 회차를 넘기면 0 — 더 넣지 않는다)
+  cumulativeSales: number; // 1회차부터 이 회차까지 넣은 매출 합
+  cumulativeNet: number; // 1회차부터 이 회차까지 받은 실지급 합
+  salesMinusNet: number; // 누적매출 − 누적수당 (양수면 아직 회수 중)
+}
+
+/** 회차 R 까지 넣은 매출 합 */
+export function cumulativeSales(goals: number[], R: number): number {
+  let sum = 0;
+  for (let r = 1; r <= Math.min(R, goals.length); r++) sum += goals[r - 1] || 0;
+  return sum;
 }
 
 /**
@@ -154,7 +168,28 @@ export function roundDetail(goals: number[], cap: number, R: number): RoundDetai
     });
   }
 
-  return { round: R, gross, net, shares };
+  // 누적 수당: 1회차부터 R회차까지 각 회차에 들어온 실지급의 합
+  let cumNet = 0;
+  for (let r = 1; r <= R; r++) {
+    for (let c = 1; c <= Math.min(r, goals.length); c++) {
+      const k = r - c + 1;
+      if (k >= 1 && k <= MAX_AGE) cumNet += netPoint(avatarPoint(goals[c - 1] || 0, k, cap));
+    }
+  }
+
+  const sales = R <= goals.length ? goals[R - 1] || 0 : 0;
+  const cumSales = cumulativeSales(goals, R);
+
+  return {
+    round: R,
+    gross,
+    net,
+    shares,
+    sales,
+    cumulativeSales: cumSales,
+    cumulativeNet: cumNet,
+    salesMinusNet: cumSales - cumNet,
+  };
 }
 
 export interface InflowRow {
