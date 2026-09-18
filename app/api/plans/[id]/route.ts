@@ -10,9 +10,10 @@ export const dynamic = "force-dynamic";
 function sanitizeRounds(rounds: unknown, planType: PlanType, allowZero: boolean): number[] {
   const meta = PLAN_META[planType];
   if (!Array.isArray(rounds)) return [meta.min];
-  const out = rounds.slice(0, 60).map((n) => {
+  const out = rounds.slice(0, 60).map((n, i) => {
     let v = Math.round(Number(n) || 0);
-    if (v <= 0) return allowZero ? 0 : meta.min;
+    // 1회차(본코드)는 반드시 만들어야 하므로 0으로 못 잡는다
+    if (v <= 0) return allowZero && i > 0 ? 0 : meta.min;
     if (v < meta.min) v = meta.min;
     const rem = (v - meta.min) % meta.step;
     if (rem !== 0) v -= rem;

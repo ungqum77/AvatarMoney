@@ -54,15 +54,20 @@ export default function SimulatorClient({
     allowZero !== saved.allowZero ||
     rounds.join(",") !== saved.rounds;
 
-  function clamp(v: number): number {
-    if (v <= 0) return allowZero ? 0 : meta.min;
+  /** 1회차(본코드)는 반드시 만들어야 하므로 0으로 못 잡는다 */
+  function canZero(i: number): boolean {
+    return allowZero && i > 0;
+  }
+
+  function clamp(i: number, v: number): number {
+    if (v <= 0) return canZero(i) ? 0 : meta.min;
     if (v < meta.min) return meta.min;
     const rem = (v - meta.min) % meta.step;
     if (rem !== 0) v -= rem;
     return v;
   }
   function setRound(i: number, v: number) {
-    setRounds((rs) => rs.map((x, idx) => (idx === i ? clamp(v) : x)));
+    setRounds((rs) => rs.map((x, idx) => (idx === i ? clamp(i, v) : x)));
   }
 
   // ± 는 0 과 최저 금액 사이를 오갈 수 있어야 한다.
@@ -89,7 +94,10 @@ export default function SimulatorClient({
   }
   function changeType(t: PlanType) {
     setType(t);
-    setRounds((rs) => rs.map((v) => Math.max(v, PLAN_META[t].min)));
+    // 0으로 비워둔 회차는 유형을 바꿔도 그대로 둔다. 1회차는 반드시 만든다.
+    setRounds((rs) =>
+      rs.map((v, i) => (v <= 0 && allowZero && i > 0 ? 0 : Math.max(v, PLAN_META[t].min)))
+    );
   }
 
   // ── 빠른 채우기 ──────────────────────────────────────────────
@@ -122,7 +130,7 @@ export default function SimulatorClient({
   function fillStepUp() {
     const first = rounds[0] ?? meta.min;
     bulk(
-      rounds.map((_, i) => clamp(first + i * meta.step)),
+      rounds.map((_, i) => clamp(i, first + i * meta.step)),
       `회차마다 ${meta.step / 10000}만원씩 올렸습니다`
     );
   }
@@ -216,7 +224,7 @@ export default function SimulatorClient({
               </span>
               <span className="block text-[16px] font-semibold text-on-surface-variant leading-snug mt-0.5">
                 {allowZero
-                  ? "− 를 끝까지 누르면 그 회차는 아바타를 안 만듭니다"
+                  ? "2회차부터 − 를 끝까지 누르면 그 회차는 아바타를 안 만듭니다 (1회차 본코드는 필수)"
                   : "모든 회차에 아바타를 하나씩 만듭니다"}
               </span>
             </div>
@@ -370,19 +378,12 @@ export default function SimulatorClient({
             >
               <Icon name="remove" size={28} />
             </button>
+            {/* 1회차는 0으로 못 잡으므로 '안 만듦' 이 나올 일이 없다 */}
             <div className="flex-1 text-center min-w-0">
-              {(rounds[0] ?? meta.min) <= 0 ? (
-                <span className="text-[24px] font-extrabold text-on-surface-variant">
-                  아바타 안 만듦
-                </span>
-              ) : (
-                <>
-                  <span className="text-[26px] font-extrabold text-on-surface num-font">
-                    {won(rounds[0] ?? meta.min)}
-                  </span>
-                  <span className="text-[19px] font-bold text-on-surface ml-0.5">원</span>
-                </>
-              )}
+              <span className="text-[26px] font-extrabold text-on-surface num-font">
+                {won(rounds[0] ?? meta.min)}
+              </span>
+              <span className="text-[19px] font-bold text-on-surface ml-0.5">원</span>
             </div>
             <button
               onClick={() => step(0, 1)}
