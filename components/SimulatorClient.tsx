@@ -253,7 +253,7 @@ export default function SimulatorClient({
         {/* 회차별 자세히 보기 */}
         <button
           onClick={() => setOpenRound(1)}
-          className="w-full min-h-[60px] rounded-2xl bg-secondary text-on-secondary text-[20px] font-extrabold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] mb-space-lg"
+          className="attention-blink w-full min-h-[60px] rounded-2xl bg-secondary text-on-secondary text-[20px] font-extrabold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] mb-space-lg"
         >
           <Icon name="timeline" size={24} />
           회차별 수당 자세히 보기
@@ -262,7 +262,7 @@ export default function SimulatorClient({
         {/* 회차 목록 헤더 */}
         <div className="flex items-center justify-between mb-space-sm">
           <div className="flex items-center gap-2">
-            <h2 className="text-headline-sm font-headline-sm text-on-surface font-bold">회차별 목표금액</h2>
+            <h2 className="text-headline-sm font-headline-sm text-on-surface font-bold">회차별 목표매출</h2>
             <span className="px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed text-label-sm font-bold">
               {rounds.length}회차
             </span>
@@ -310,7 +310,7 @@ export default function SimulatorClient({
                 <div className="bg-surface-container-low rounded-xl p-3.5 flex flex-col gap-2">
                   <div className="flex items-center justify-between">
                     <span className="text-label-md font-semibold text-on-surface-variant">
-                      목표금액 (단위 {meta.step / 10000}만원)
+                      목표매출 (단위 {meta.step / 10000}만원)
                     </span>
                     <span className="text-label-sm text-outline">최소 {meta.min / 10000}만원</span>
                   </div>

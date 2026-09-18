@@ -34,6 +34,30 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
 }
 
+/* 눈길을 끄는 깜빡임.
+   글자가 사라지면 60대에게는 오히려 읽기 어려우므로, 글자는 계속 보이게 두고
+   밝기와 바깥 테두리만 깜빡인다. */
+@keyframes attention-blink {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(0, 108, 73, 0.65);
+    filter: brightness(1);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(0, 108, 73, 0);
+    filter: brightness(1.18);
+  }
+}
+.attention-blink {
+  animation: attention-blink 1.3s ease-in-out infinite;
+}
+/* 움직임을 줄이도록 설정한 기기에서는 깜빡이지 않는다 */
+@media (prefers-reduced-motion: reduce) {
+  .attention-blink {
+    animation: none;
+  }
+}
+
 /* 숫자 정렬 */
 .num-font {
   font-variant-numeric: tabular-nums;

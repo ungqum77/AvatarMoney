@@ -180,7 +180,34 @@ export default function RoundDetailSheet({
         )}
 
         <ExpiredNote expired={expired} />
-        <div className="h-6" />
+
+        {/* 본문 안에도 회차 이동. 아래까지 읽고 나서 위로 안 올라가도 되게. */}
+        <nav className="mt-5 mb-8 flex items-stretch gap-2">
+          <button
+            onClick={() => onRound(round - 1)}
+            disabled={round <= 1}
+            className="flex-1 min-h-[68px] rounded-2xl bg-surface-container-lowest border-2 border-surface-container text-on-surface flex flex-col items-center justify-center active:scale-[0.97] disabled:opacity-30"
+          >
+            <span className="text-[16px] font-semibold text-on-surface-variant flex items-center gap-1">
+              <Icon name="arrow_back" size={16} />
+              이전
+            </span>
+            <span className="text-[21px] font-extrabold">{round > 1 ? `${round - 1}회차` : "처음"}</span>
+          </button>
+          <button
+            onClick={() => onRound(round + 1)}
+            disabled={round >= lastRound}
+            className="flex-[2] min-h-[68px] rounded-2xl bg-primary text-on-primary flex flex-col items-center justify-center shadow-md active:scale-[0.97] disabled:opacity-30"
+          >
+            <span className="text-[16px] font-semibold opacity-90 flex items-center gap-1">
+              다음 회차 보기
+              <Icon name="arrow_forward" size={16} />
+            </span>
+            <span className="text-[23px] font-extrabold">
+              {round < lastRound ? `${round + 1}회차` : "마지막"}
+            </span>
+          </button>
+        </nav>
       </div>
     </div>
   );
@@ -227,23 +254,30 @@ function AvatarCard({
           </span>
         </div>
 
-        <div className="mt-3 flex items-end justify-between gap-2">
-          <div className="min-w-0">
-            <p className="text-[17px] text-on-surface-variant font-semibold">목표 {won(s.goal)}원</p>
-            <div className="flex items-baseline gap-1 mt-0.5">
-              <span className="text-[30px] leading-tight font-extrabold text-secondary num-font">
-                {won(s.net)}
-              </span>
-              <span className="text-[19px] font-bold text-secondary">원</span>
-            </div>
+        {/* 금액 영역 — 넣은 돈(목표매출)과 받는 돈(실지급)을 확실히 나눈다 */}
+        <div className="mt-3 rounded-xl border-2 border-surface-container overflow-hidden">
+          <div className="flex items-center justify-between gap-2 px-3.5 py-2.5 bg-surface-container-low">
+            <span className="text-[18px] font-bold text-on-surface-variant">목표매출</span>
+            <span className="text-[20px] font-extrabold text-on-surface num-font">{won(s.goal)}원</span>
           </div>
-          <button
-            onClick={() => setOpen((v) => !v)}
-            className="min-h-[48px] px-3 rounded-xl bg-surface-container text-on-surface text-[17px] font-bold shrink-0 flex items-center gap-1"
-          >
-            {show ? "접기" : "계산식"}
-            {!show && <Icon name="south" size={18} />}
-          </button>
+          <div className="flex items-end justify-between gap-2 px-3.5 py-3 bg-secondary-container">
+            <div className="min-w-0">
+              <p className="text-[17px] font-bold text-on-secondary-container">이 회차 실지급</p>
+              <div className="flex items-baseline gap-1 mt-0.5">
+                <span className="text-[30px] leading-tight font-extrabold text-on-secondary-container num-font">
+                  {won(s.net)}
+                </span>
+                <span className="text-[19px] font-bold text-on-secondary-container">원</span>
+              </div>
+            </div>
+            <button
+              onClick={() => setOpen((v) => !v)}
+              className="min-h-[48px] px-3 rounded-xl bg-surface-container-lowest text-on-surface text-[17px] font-bold shrink-0 flex items-center gap-1 shadow-sm"
+            >
+              {show ? "접기" : "계산식"}
+              {!show && <Icon name="south" size={18} />}
+            </button>
+          </div>
         </div>
 
         {s.age < 4 && (
@@ -264,7 +298,7 @@ function AvatarCard({
             label="기준매출"
             formula={`${won(s.goal)} ÷ 1.1`}
             value={s.base}
-            note="목표의 10%는 회사사치세"
+            note="목표매출의 10%는 회사사치세"
           />
           <Line label="판매" formula={`${won(s.base)} × 32%`} value={s.sale} />
           <Line
