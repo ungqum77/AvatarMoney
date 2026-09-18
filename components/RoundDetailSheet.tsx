@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { won } from "@/lib/format";
-import { roundDetail, WITHHOLD, type AvatarShare } from "@/lib/points";
+import { roundDetail, WITHHOLD, MAX_AGE, type AvatarShare } from "@/lib/points";
 import Icon from "@/components/Icon";
 
 /**
@@ -27,6 +27,14 @@ export default function RoundDetailSheet({
   onClose: () => void;
 }) {
   const detail = useMemo(() => roundDetail(goals, cap, round), [goals, cap, round]);
+
+  // 수명(18회차)이 다해 빠진 아바타. 19회차면 1회차 아바타가 여기 들어간다.
+  const expired = useMemo(() => {
+    const born = Math.min(round, goals.length); // 지금까지 만든 아바타 수
+    const out: number[] = [];
+    for (let c = 1; c <= born; c++) if (round - c + 1 > MAX_AGE) out.push(c);
+    return out;
+  }, [round, goals.length]);
 
   const [openAll, setOpenAll] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -76,12 +84,14 @@ export default function RoundDetailSheet({
             <Icon name="arrow_back" size={30} />
           </button>
           <div className="flex-1 text-center">
+            {/* 회사 회차가 아니라 '내가 시작하고 몇 번째인지' */}
+            <div className="text-[17px] text-on-surface-variant font-bold">내</div>
             <div className="text-[40px] leading-none font-extrabold text-on-surface num-font">
               {round}
               <span className="text-[22px] font-bold ml-1">회차</span>
             </div>
             <div className="text-[17px] text-on-surface-variant font-semibold mt-1">
-              전체 {lastRound}회차 중
+              수당은 {lastRound}회차까지
             </div>
           </div>
           <button
@@ -117,7 +127,7 @@ export default function RoundDetailSheet({
       <div ref={bodyRef} className="flex-1 overflow-y-auto px-margin-mobile pb-safe">
         {/* 이 회차 총액 */}
         <section className="mt-4 rounded-2xl bg-primary p-space-lg text-on-primary shadow-lg">
-          <p className="text-[19px] font-semibold opacity-90">{round}회차에 받는 돈</p>
+          <p className="text-[19px] font-semibold opacity-90">내 {round}회차에 받는 돈</p>
           <div className="flex items-baseline gap-1.5 mt-1">
             <span className="text-[40px] leading-tight font-extrabold num-font">{won(detail.net)}</span>
             <span className="text-[22px] font-bold">원</span>
@@ -155,7 +165,7 @@ export default function RoundDetailSheet({
             </div>
 
             {/* 합계 확인 */}
-            <section className="mt-4 mb-6 rounded-2xl bg-surface-container-high p-space-md">
+            <section className="mt-4 rounded-2xl bg-surface-container-high p-space-md">
               <div className="flex items-center justify-between">
                 <span className="text-[19px] font-bold text-on-surface">
                   아바타 {detail.shares.length}개 합계
@@ -165,10 +175,31 @@ export default function RoundDetailSheet({
                 </span>
               </div>
             </section>
+
           </>
         )}
+
+        <ExpiredNote expired={expired} />
+        <div className="h-6" />
       </div>
     </div>
+  );
+}
+
+/** 수명(18회차)이 다해 빠진 아바타를 알려준다. 개수가 왜 줄었는지 보이게. */
+function ExpiredNote({ expired }: { expired: number[] }) {
+  if (expired.length === 0) return null;
+  const list = expired.slice(-3);
+  return (
+    <section className="mt-3 rounded-2xl bg-surface-container p-space-md">
+      <p className="text-[19px] font-bold text-on-surface-variant">
+        수명이 끝난 아바타 {expired.length}개
+      </p>
+      <p className="text-[17px] text-on-surface-variant font-semibold mt-1">
+        {expired.length > 3 && "… "}
+        {list.map((c) => `${c}회차`).join(", ")} 아바타는 18살까지 살고 사라졌습니다.
+      </p>
+    </section>
   );
 }
 

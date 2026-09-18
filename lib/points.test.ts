@@ -157,3 +157,48 @@ describe("roundDetail", () => {
     expect(d.net).toBe(0);
   });
 });
+
+// ============================================================================
+// 개인 회차 기준 아바타 수명
+//   "19회차가 되면 제일 처음에 만든 아바타의 수명이 다하고
+//    2회차에 만든 아바타가 18회차(18살)가 된다"
+// ============================================================================
+describe("아바타 수명 — 개인 회차 기준", () => {
+  const cap = CAP.won33;
+  const goals = Array.from({ length: 18 }, () => 330_000); // 1~18회차에 매회 생성
+
+  it("18회차: 아바타 18개, 1회차 아바타가 18살", () => {
+    const d = roundDetail(goals, cap, 18);
+    expect(d.shares).toHaveLength(18);
+    expect(d.shares[0]).toMatchObject({ bornRound: 1, age: 18 });
+    expect(d.shares[17]).toMatchObject({ bornRound: 18, age: 1 });
+  });
+
+  it("19회차: 1회차 아바타는 소멸, 2회차 아바타가 18살", () => {
+    const d = roundDetail(goals, cap, 19);
+    expect(d.shares.some((s) => s.bornRound === 1)).toBe(false); // 소멸
+    expect(d.shares[0]).toMatchObject({ bornRound: 2, age: 18 });
+    expect(d.shares).toHaveLength(17); // 2~18회차 아바타
+  });
+
+  it("회차가 갈수록 가장 오래된 아바타부터 한 개씩 빠진다", () => {
+    for (let R = 19; R <= 36; R++) {
+      const d = roundDetail(goals, cap, R);
+      const oldest = d.shares[0];
+      if (!oldest) {
+        expect(R).toBeGreaterThan(35); // 18회차 아바타가 35회차까지 산다
+        continue;
+      }
+      // 살아있는 것 중 제일 오래된 아바타는 항상 18살
+      expect(oldest.age).toBe(18);
+      expect(oldest.bornRound).toBe(R - 17);
+    }
+  });
+
+  it("35회차가 마지막 수당 — 18회차 아바타의 18살", () => {
+    const d35 = roundDetail(goals, cap, 35);
+    expect(d35.shares).toHaveLength(1);
+    expect(d35.shares[0]).toMatchObject({ bornRound: 18, age: 18 });
+    expect(roundDetail(goals, cap, 36).shares).toHaveLength(0);
+  });
+});
