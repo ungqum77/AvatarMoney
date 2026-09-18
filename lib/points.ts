@@ -215,6 +215,25 @@ export function roundDetail(goals: number[], cap: number, R: number): RoundDetai
   };
 }
 
+/**
+ * 자주 쓰는 조합. 1회차(첫코드)와 2회차부터의 금액을 한 번에 채운다.
+ * 금액은 모두 11만원 단위라 11만형·33만형 어느 유형에서도 그대로 떨어진다.
+ * (points.test.ts 에서 두 유형 모두 보정 없이 들어가는지 확인한다)
+ */
+export interface PlanTemplate {
+  label: string;
+  first: number; // 1회차
+  rest: number; // 2회차부터
+}
+
+export const PLAN_TEMPLATES: PlanTemplate[] = [
+  { label: "1100 - 330", first: 11_000_000, rest: 3_300_000 },
+  { label: "110 - 33", first: 1_100_000, rest: 330_000 },
+  { label: "110 - 110", first: 1_100_000, rest: 1_100_000 },
+  { label: "110 - 55", first: 1_100_000, rest: 550_000 },
+  { label: "1100 - 550", first: 11_000_000, rest: 5_500_000 },
+];
+
 export interface InflowRow {
   round: number; // 정산 회차 R
   net: number; // 그 회차에 들어오는 실지급 수당 합

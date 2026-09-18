@@ -8,6 +8,8 @@ import {
   cumulativeSales,
   roundSalesTotal,
   avatarNetLifetime,
+  PLAN_TEMPLATES,
+  PLAN_META,
   MAX_AGE,
 } from "./points";
 
@@ -461,5 +463,45 @@ describe("1회차 본코드", () => {
     const d = roundDetail(g, cap, 4);
     expect(d.shares.map((x) => x.bornRound)).toEqual([1, 4]);
     expect(roundSalesTotal(g, 4)).toBe(660_000);
+  });
+});
+
+// ============================================================================
+// 플랜 템플릿 — 금액이 단위에 딱 떨어져야 한다
+//   떨어지지 않으면 화면의 보정(clamp)에 걸려 누른 값과 다른 값이 들어간다.
+// ============================================================================
+describe("플랜 템플릿", () => {
+  /** 화면·API 의 보정과 같은 규칙 */
+  function normalize(v: number, meta: { min: number; step: number }): number {
+    if (v < meta.min) return meta.min;
+    const rem = (v - meta.min) % meta.step;
+    return rem === 0 ? v : v - rem;
+  }
+
+  it("모든 템플릿 금액이 두 유형에서 보정 없이 들어간다", () => {
+    for (const tpl of PLAN_TEMPLATES) {
+      for (const t of ["won11", "won33"] as const) {
+        const meta = PLAN_META[t];
+        expect([tpl.label, t, normalize(tpl.first, meta)]).toEqual([tpl.label, t, tpl.first]);
+        expect([tpl.label, t, normalize(tpl.rest, meta)]).toEqual([tpl.label, t, tpl.rest]);
+      }
+    }
+  });
+
+  it("사장님이 정한 다섯 가지가 그대로 있다", () => {
+    expect(PLAN_TEMPLATES.map((t) => t.label)).toEqual([
+      "1100 - 330",
+      "110 - 33",
+      "110 - 110",
+      "110 - 55",
+      "1100 - 550",
+    ]);
+  });
+
+  it("라벨의 숫자와 실제 금액이 일치한다", () => {
+    for (const tpl of PLAN_TEMPLATES) {
+      const [a, b] = tpl.label.split(" - ").map((s) => Number(s) * 10_000);
+      expect([tpl.label, tpl.first, tpl.rest]).toEqual([tpl.label, a, b]);
+    }
   });
 });

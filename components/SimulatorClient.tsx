@@ -4,24 +4,17 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { won, shortKRW, multiple } from "@/lib/format";
-import { planSummary, avatarNetLifetime, PLAN_META, MAX_AGE, type PlanType } from "@/lib/points";
+import {
+  planSummary,
+  avatarNetLifetime,
+  PLAN_META,
+  PLAN_TEMPLATES,
+  MAX_AGE,
+  type PlanType,
+  type PlanTemplate,
+} from "@/lib/points";
 import Icon from "@/components/Icon";
 import RoundDetailSheet from "@/components/RoundDetailSheet";
-
-/**
- * 자주 쓰는 조합. 1회차(첫코드)와 2회차부터의 금액을 한 번에 채운다.
- * 값은 11만원 단위라 두 유형(11만형·33만형) 모두에서 그대로 쓸 수 있다.
- */
-interface Template {
-  label: string;
-  first: number;
-  rest: number;
-}
-
-const TEMPLATES: Template[] = [
-  { label: "110 - 33", first: 1_100_000, rest: 330_000 },
-  { label: "1100 - 330", first: 11_000_000, rest: 3_300_000 },
-];
 
 /** 11,000,000 → "1,100만" */
 function manLabel(v: number): string {
@@ -153,7 +146,7 @@ export default function SimulatorClient({
   }
 
   /** 템플릿: 1회차와 2회차부터의 금액을 한 번에 */
-  function applyTemplate(tpl: Template) {
+  function applyTemplate(tpl: PlanTemplate) {
     const first = clamp(0, tpl.first);
     const rest = clamp(1, tpl.rest);
     const n = Math.max(rounds.length, 2);
@@ -400,19 +393,21 @@ export default function SimulatorClient({
           {/* 템플릿 — 자주 쓰는 조합을 한 번에 */}
           <div>
             <p className="text-[19px] font-bold text-on-surface mb-2">템플릿으로 한 번에</p>
-            <div className="flex items-stretch gap-2">
-              {TEMPLATES.map((tpl) => (
+            {/* 2열 격자. 한 줄에 다 넣으면 글자가 세로로 쪼개진다. */}
+            <div className="grid grid-cols-2 gap-2">
+              {PLAN_TEMPLATES.map((tpl) => (
                 <button
                   key={tpl.label}
                   onClick={() => applyTemplate(tpl)}
-                  className="flex-1 min-h-[76px] rounded-xl border-2 border-primary/30 bg-primary-fixed/50 px-3 py-2.5 text-left active:scale-[0.97]"
+                  className="min-h-[76px] rounded-xl border-2 border-primary/30 bg-primary-fixed/50 px-3 py-2.5 text-left active:scale-[0.97]"
                 >
-                  <span className="block text-[20px] font-extrabold text-on-primary-fixed leading-tight">
+                  <span className="block text-[20px] font-extrabold text-on-primary-fixed leading-tight whitespace-nowrap">
                     {tpl.label}
                   </span>
-                  <span className="block text-[15px] font-semibold text-on-primary-fixed/80 leading-tight mt-1">
+                  <span className="block text-[15px] font-semibold text-on-primary-fixed/80 leading-tight mt-1 whitespace-nowrap">
                     1회차 {manLabel(tpl.first)}
-                    <br />
+                  </span>
+                  <span className="block text-[15px] font-semibold text-on-primary-fixed/80 leading-tight whitespace-nowrap">
                     2회차부터 {manLabel(tpl.rest)}
                   </span>
                 </button>
