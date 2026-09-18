@@ -1,0 +1,45 @@
+import { getSessionUser } from "@/lib/auth/session";
+import { formatPhone } from "@/lib/format";
+import LogoutButton from "@/components/LogoutButton";
+
+export const dynamic = "force-dynamic";
+
+export default async function MePage() {
+  const user = await getSessionUser();
+
+  return (
+    <div className="flex flex-col w-full">
+      <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.03)] pt-safe">
+        <div className="h-16 px-margin-mobile flex items-center gap-2">
+          <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
+            <span className="material-symbols-outlined text-on-primary text-[20px]">account_circle</span>
+          </div>
+          <h1 className="text-headline-sm font-headline-sm text-on-surface font-bold">내정보</h1>
+        </div>
+      </header>
+
+      <main className="px-margin-mobile flex flex-col gap-space-lg pt-space-md">
+        <section className="rounded-2xl bg-surface-container-lowest p-space-lg shadow-md flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center">
+            <span className="material-symbols-outlined text-on-primary text-[36px]">person</span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-headline-md font-headline-md text-on-surface font-bold">{user?.name}님</span>
+            <span className="text-body-lg font-body-lg text-on-surface-variant">
+              {user ? formatPhone(user.phone) : ""}
+            </span>
+          </div>
+        </section>
+
+        <section className="rounded-2xl bg-surface-container-high p-space-md flex items-start gap-3">
+          <span className="material-symbols-outlined text-primary text-[24px]">shield</span>
+          <p className="text-body-md font-body-md text-on-surface">
+            내 플랜은 안전하게 저장되어 어느 기기에서 로그인해도 그대로 볼 수 있습니다.
+          </p>
+        </section>
+
+        <LogoutButton />
+      </main>
+    </div>
+  );
+}

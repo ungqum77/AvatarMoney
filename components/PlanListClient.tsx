@@ -1,0 +1,286 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { won, manwon } from "@/lib/format";
+import type { PlanType } from "@/lib/points";
+import { PLAN_META } from "@/lib/points";
+import InstallPrompt from "@/components/InstallPrompt";
+import AdBanner from "@/components/AdBanner";
+
+export interface PlanCardData {
+  id: number;
+  name: string;
+  planType: PlanType;
+  capLabel: string;
+  rounds: number;
+  goals?: number[];
+  totalInvest: number;
+  totalNet: number;
+  roi: number;
+}
+
+export default function PlanListClient({
+  userName,
+  initialCards,
+}: {
+  userName: string;
+  initialCards: PlanCardData[];
+}) {
+  const router = useRouter();
+  const [cards, setCards] = useState<PlanCardData[]>(initialCards);
+  const [showNew, setShowNew] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  const grandTotal = cards.reduce((a, c) => a + c.totalNet, 0);
+
+  async function createPlan(name: string, planType: PlanType) {
+    setBusy(true);
+    const meta = PLAN_META[planType];
+    const res = await fetch("/api/plans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, planType, rounds: [meta.min] }),
+    });
+    const data = await res.json();
+    setBusy(false);
+    setShowNew(false);
+    if (res.ok && data.plan) router.push(`/plans/${data.plan.id}`);
+  }
+
+  async function duplicate(card: PlanCardData) {
+    setBusy(true);
+    const res = await fetch("/api/plans", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: `${card.name} (복사본)`,
+        planType: card.planType,
+        rounds: card.goals && card.goals.length ? card.goals : [PLAN_META[card.planType].min],
+      }),
+    });
+    setBusy(false);
+    if (res.ok) router.refresh();
+  }
+
+  async function remove(id: number) {
+    if (!confirm("이 플랜을 삭제할까요?")) return;
+    setCards((cs) => cs.filter((c) => c.id !== id));
+    await fetch(`/api/plans/${id}`, { method: "DELETE" });
+    router.refresh();
+  }
+
+  return (
+    <div className="flex flex-col w-full">
+      {/* 헤더 */}
+      <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.03)] pt-safe">
+        <div className="h-16 px-margin-mobile flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
+              <span className="material-symbols-outlined text-on-primary text-[20px]">savings</span>
+            </div>
+            <div className="flex flex-col">
+              <span className="text-label-sm text-on-surface-variant leading-none">Avatar Money</span>
+              <h1 className="text-headline-sm font-headline-sm text-on-surface font-bold leading-tight">홈</h1>
+            </div>
+          </div>
+          <Link href="/me" className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
+            <span className="material-symbols-outlined text-on-primary text-[20px]">person</span>
+          </Link>
+        </div>
+      </header>
+
+      <main className="px-margin-mobile flex flex-col gap-space-lg pt-space-md">
+        <InstallPrompt />
+
+        {/* 인사 + 요약 */}
+        <section className="flex flex-col gap-space-xs">
+          <h2 className="text-headline-lg font-headline-lg text-on-surface">
+            {userName ? `${userName}님, ` : ""}내 플랜
+          </h2>
+          <p className="text-body-md font-body-md text-on-surface-variant">설계한 수당 플랜을 한눈에 확인하세요</p>
+        </section>
+
+        <section className="rounded-2xl bg-surface-container-lowest p-space-md shadow-md">
+          <div className="flex items-center justify-between">
+            <span className="text-label-md font-semibold text-on-surface">전체 플랜 예상 수당 합계</span>
+            <span className="px-2.5 py-1 rounded-full bg-surface-container-high text-primary text-label-sm font-semibold">
+              활성 플랜 {cards.length}개
+            </span>
+          </div>
+          <div className="flex items-baseline gap-1 mt-2">
+            <span className="text-display-currency-mobile font-display-currency-mobile text-secondary font-extrabold">
+              {manwon(grandTotal)}
+            </span>
+            <span className="text-headline-md font-headline-md text-secondary font-bold">만 원</span>
+          </div>
+          <p className="text-label-sm text-on-surface-variant mt-1">실지급(세후 3.3% 제외) 기준 예상액</p>
+        </section>
+
+        {/* 새 플랜 */}
+        <button
+          onClick={() => setShowNew(true)}
+          className="w-full min-h-[60px] rounded-2xl bg-primary text-on-primary flex items-center justify-center gap-2 text-headline-sm font-headline-sm font-bold shadow-lg shadow-primary/20 active:scale-[0.98]"
+        >
+          <span className="material-symbols-outlined text-[28px]">add_circle</span>새 플랜 만들기
+        </button>
+
+        {/* 카드 목록 */}
+        {cards.length === 0 ? (
+          <div className="flex flex-col items-center text-center py-12 px-4 rounded-2xl bg-surface-container-lowest">
+            <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center text-primary mb-3">
+              <span className="material-symbols-outlined text-[32px]">folder_open</span>
+            </div>
+            <h4 className="text-headline-sm font-headline-sm text-on-surface font-bold">저장된 플랜이 없습니다</h4>
+            <p className="text-body-md font-body-md text-on-surface-variant mt-1">
+              위 &lsquo;새 플랜 만들기&rsquo;로 첫 계획을 시작해보세요.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-space-md">
+            {cards.map((c) => (
+              <article key={c.id} className="rounded-2xl bg-surface-container-lowest p-space-md shadow-sm flex flex-col">
+                <div className="flex items-center gap-2">
+                  <span className="px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed-variant text-label-sm font-bold">
+                    {PLAN_META[c.planType].label}
+                  </span>
+                  <span className="px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface text-label-sm font-semibold">
+                    극점 {c.capLabel}
+                  </span>
+                </div>
+                <h3 className="text-headline-sm font-headline-sm text-on-surface font-bold mt-2 leading-snug">{c.name}</h3>
+
+                <div className="my-space-md p-3 rounded-xl bg-surface-container-low grid grid-cols-2 gap-3">
+                  <div className="flex flex-col">
+                    <span className="text-label-sm text-on-surface-variant">총 투입 ({c.rounds}회차)</span>
+                    <span className="text-body-lg-bold font-body-lg-bold text-on-surface mt-0.5">{won(c.totalInvest)}원</span>
+                  </div>
+                  <div className="flex flex-col text-right">
+                    <span className="text-label-sm text-on-surface-variant">예상 수익률</span>
+                    <span className="text-body-lg-bold font-body-lg-bold text-secondary font-bold mt-0.5">
+                      +{c.roi.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="col-span-2 pt-2 flex flex-col border-t border-surface-container">
+                    <span className="text-label-sm text-on-surface-variant">총 예상 수당(실지급)</span>
+                    <div className="flex items-baseline gap-1 mt-0.5">
+                      <span className="text-display-currency-mobile font-display-currency-mobile text-primary font-extrabold">
+                        {won(c.totalNet)}
+                      </span>
+                      <span className="text-headline-md font-headline-md text-primary font-bold">원</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/plans/${c.id}`}
+                    className="flex-1 min-h-[52px] rounded-xl bg-primary text-on-primary text-label-md font-bold flex items-center justify-center gap-1.5 active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">tune</span>열기
+                  </Link>
+                  <Link
+                    href={`/present?plan=${c.id}`}
+                    className="min-h-[52px] px-3.5 rounded-xl bg-secondary text-on-secondary text-label-md font-bold flex items-center justify-center gap-1 active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">present_to_all</span>보여주기
+                  </Link>
+                  <button
+                    onClick={() => duplicate(c)}
+                    disabled={busy}
+                    aria-label="복제"
+                    className="w-12 h-12 rounded-xl bg-surface-container-high text-on-surface flex items-center justify-center active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">content_copy</span>
+                  </button>
+                  <button
+                    onClick={() => remove(c.id)}
+                    aria-label="삭제"
+                    className="w-12 h-12 rounded-xl bg-error-container text-on-error-container flex items-center justify-center active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">delete</span>
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+
+        {/* 광고 (목록 하단만) */}
+        <AdBanner />
+      </main>
+
+      {/* 새 플랜 모달 */}
+      {showNew && <NewPlanModal busy={busy} onClose={() => setShowNew(false)} onCreate={createPlan} />}
+    </div>
+  );
+}
+
+function NewPlanModal({
+  busy,
+  onClose,
+  onCreate,
+}: {
+  busy: boolean;
+  onClose: () => void;
+  onCreate: (name: string, type: PlanType) => void;
+}) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState<PlanType>("won33");
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40" onClick={onClose}>
+      <div
+        className="w-full max-w-[480px] bg-surface rounded-t-3xl p-margin-mobile pb-safe flex flex-col gap-space-md"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="text-headline-md font-headline-md text-on-surface font-bold">새 플랜 만들기</h3>
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center" aria-label="닫기">
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div className="flex flex-col gap-space-xs">
+          <label className="text-body-lg-bold font-body-lg-bold text-on-surface">플랜 이름</label>
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="예: 2025 상반기 플랜"
+            className="w-full h-[56px] px-4 text-body-lg font-body-lg text-on-surface bg-surface-container-lowest rounded-xl shadow-sm focus:outline-none focus:bg-surface-container-high"
+          />
+        </div>
+
+        <div className="flex flex-col gap-space-xs">
+          <label className="text-body-lg-bold font-body-lg-bold text-on-surface">플랜 유형 (극점)</label>
+          <div className="grid grid-cols-2 gap-2">
+            {(["won33", "won11"] as PlanType[]).map((t) => {
+              const m = PLAN_META[t];
+              const on = type === t;
+              return (
+                <button
+                  key={t}
+                  onClick={() => setType(t)}
+                  className={`min-h-[56px] rounded-xl px-3 flex flex-col items-center justify-center border-2 ${
+                    on ? "border-primary bg-primary-fixed text-on-primary-fixed" : "border-surface-container bg-surface-container-lowest text-on-surface"
+                  }`}
+                >
+                  <span className="text-body-lg-bold font-body-lg-bold font-bold">{m.label}</span>
+                  <span className="text-label-sm">극점 {m.capLabel}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <button
+          onClick={() => onCreate(name.trim() || "새 플랜", type)}
+          disabled={busy}
+          className="w-full min-h-[60px] rounded-2xl bg-primary text-on-primary text-headline-sm font-headline-sm font-bold shadow-lg active:scale-[0.98] disabled:opacity-60"
+        >
+          {busy ? "만드는 중..." : "만들고 입력하러 가기"}
+        </button>
+      </div>
+    </div>
+  );
+}
