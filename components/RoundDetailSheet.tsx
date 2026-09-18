@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { won, shortKRW } from "@/lib/format";
-import { roundDetail, WITHHOLD, MAX_AGE, type AvatarShare } from "@/lib/points";
+import { roundDetail, roundSalesTotal, WITHHOLD, MAX_AGE, type AvatarShare } from "@/lib/points";
 import Icon from "@/components/Icon";
 
 /**
@@ -91,7 +91,7 @@ export default function RoundDetailSheet({
               <span className="text-[22px] font-bold ml-1">회차</span>
             </div>
             <div className="text-[17px] text-on-surface-variant font-semibold mt-1">
-              수당은 {lastRound}회차까지
+              모두 {lastRound}회차
             </div>
           </div>
           <button
@@ -135,12 +135,15 @@ export default function RoundDetailSheet({
           <p className="text-[17px] font-semibold opacity-90 mt-1">
             세금 떼기 전 {won(detail.gross)}원
           </p>
-          <div className="mt-3 pt-3 border-t border-on-primary/25 flex items-center justify-between">
-            <span className="text-[18px] font-semibold opacity-90">이 회차 매출 (넣는 돈)</span>
+          <div className="mt-3 pt-3 border-t border-on-primary/25 flex items-center justify-between gap-2">
+            <span className="text-[18px] font-semibold opacity-90">이 회차에 넣는 총매출</span>
             <span className="text-[20px] font-extrabold num-font">
               {detail.sales > 0 ? `${won(detail.sales)}원` : "없음"}
             </span>
           </div>
+          <p className="text-[15px] font-semibold opacity-80 mt-1">
+            살아있는 아바타 {detail.shares.length}개의 목표매출을 더한 금액
+          </p>
         </section>
 
         {detail.shares.length === 0 ? (
@@ -213,39 +216,39 @@ export default function RoundDetailSheet({
             </span>
           </div>
 
-          {/* 누적매출 − 누적수당 */}
+          {/* 누적수당 − 누적매출. 양수면 넣은 돈을 넘어선 것이라 좋은 쪽이다. */}
           <div
             className={`px-space-md py-3.5 border-t-2 border-surface-container ${
-              detail.salesMinusNet > 0 ? "bg-tertiary-fixed" : "bg-secondary-container"
+              detail.netMinusSales < 0 ? "bg-tertiary-fixed" : "bg-secondary-container"
             }`}
           >
             <div className="flex items-center justify-between gap-2">
               <span
                 className={`text-[19px] font-extrabold ${
-                  detail.salesMinusNet > 0 ? "text-on-tertiary-fixed" : "text-on-secondary-container"
+                  detail.netMinusSales < 0 ? "text-on-tertiary-fixed" : "text-on-secondary-container"
                 }`}
               >
-                누적매출 − 누적수당
+                누적수당 − 누적매출
               </span>
               <span
                 className={`text-[22px] font-extrabold num-font ${
-                  detail.salesMinusNet > 0 ? "text-on-tertiary-fixed" : "text-on-secondary-container"
+                  detail.netMinusSales < 0 ? "text-on-tertiary-fixed" : "text-on-secondary-container"
                 }`}
               >
-                {detail.salesMinusNet < 0 ? "−" : ""}
-                {won(Math.abs(detail.salesMinusNet))}원
+                {detail.netMinusSales < 0 ? "−" : "+"}
+                {won(Math.abs(detail.netMinusSales))}원
               </span>
             </div>
             <p
               className={`text-[17px] font-semibold mt-1 ${
-                detail.salesMinusNet > 0 ? "text-on-tertiary-fixed" : "text-on-secondary-container"
+                detail.netMinusSales < 0 ? "text-on-tertiary-fixed" : "text-on-secondary-container"
               }`}
             >
-              {detail.salesMinusNet > 0
-                ? `아직 ${won(detail.salesMinusNet)}원 더 받아야 넣은 돈만큼 됩니다`
-                : detail.salesMinusNet === 0
+              {detail.netMinusSales < 0
+                ? `아직 ${won(-detail.netMinusSales)}원 더 받아야 넣은 돈만큼 됩니다`
+                : detail.netMinusSales === 0
                   ? "넣은 돈을 정확히 다 받았습니다"
-                  : `넣은 돈을 다 받고 ${won(-detail.salesMinusNet)}원 더 받았습니다`}
+                  : `넣은 돈을 다 받고 ${won(detail.netMinusSales)}원 더 받았습니다`}
             </p>
           </div>
         </section>
@@ -293,10 +296,10 @@ export default function RoundDetailSheet({
   );
 }
 
-/** 회차 이동 버튼에 적을 그 회차 매출. 플랜 회차를 넘기면 더 넣지 않는다. */
+/** 회차 이동 버튼에 적을 그 회차의 총매출(살아있는 아바타들의 합). */
 function salesLabel(goals: number[], r: number): string {
-  const g = r <= goals.length ? goals[r - 1] || 0 : 0;
-  return g > 0 ? `매출 ${shortKRW(g)}원` : "투입 없음";
+  const g = roundSalesTotal(goals, r);
+  return g > 0 ? `총매출 ${shortKRW(g)}원` : "투입 없음";
 }
 
 /** 수명(18회차)이 다해 빠진 아바타를 알려준다. 개수가 왜 줄었는지 보이게. */

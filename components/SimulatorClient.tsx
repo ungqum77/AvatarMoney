@@ -479,7 +479,7 @@ export default function SimulatorClient({
           cap={meta.cap}
           capLabel={meta.capLabel}
           round={openRound}
-          lastRound={summary.inflow.length}
+          lastRound={Math.min(MAX_AGE, summary.inflow.length)}
           onRound={setOpenRound}
           onClose={() => setOpenRound(null)}
         />

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { won, shortKRW } from "@/lib/format";
-import { planSummary, PLAN_META, type PlanType } from "@/lib/points";
+import { planSummary, PLAN_META, MAX_AGE, type PlanType } from "@/lib/points";
 import AdBanner from "@/components/AdBanner";
 import Icon from "@/components/Icon";
 import RoundDetailSheet from "@/components/RoundDetailSheet";
@@ -30,12 +30,29 @@ export default function TimelineClient({
     [plan]
   );
 
-  const rows = useMemo(() => (summary ? summary.inflow.filter((r) => r.net > 0) : []), [summary]);
+  // 18회차까지만 본다. 그 뒤로도 수당은 나오지만 회원이 보는 단위는 18회차다.
+  const rows = useMemo(
+    () => (summary ? summary.inflow.filter((r) => r.net > 0 && r.round <= MAX_AGE) : []),
+    [summary]
+  );
   const maxNet = useMemo(() => rows.reduce((m, r) => Math.max(m, r.net), 0), [rows]);
+  // 18회차까지만 보여주므로 피크도 그 안에서 고른다.
+  // 전체 피크(peakRound)는 18회차 밖일 수 있어 화면과 어긋난다.
+  const peakRound = useMemo(() => {
+    let best = 0;
+    let bestNet = -1;
+    for (const r of rows) {
+      if (r.net > bestNet) {
+        bestNet = r.net;
+        best = r.round;
+      }
+    }
+    return best;
+  }, [rows]);
 
   // 회차별 자세히 보기
   const [openRound, setOpenRound] = useState<number | null>(null);
-  const lastRound = summary ? summary.inflow.length : 0;
+  const lastRound = summary ? Math.min(MAX_AGE, summary.inflow.length) : 0;
 
   return (
     <div className="flex flex-col w-full">
@@ -111,7 +128,7 @@ export default function TimelineClient({
               </div>
               <div className="p-space-md rounded-2xl bg-primary-fixed/40 shadow-sm">
                 <span className="text-label-md font-semibold text-primary">최고 정산 회차</span>
-                <div className="mt-2 text-headline-md font-headline-md text-primary font-extrabold num-font">{summary.peakRound}회차</div>
+                <div className="mt-2 text-headline-md font-headline-md text-primary font-extrabold num-font">{peakRound}회차</div>
                 <span className="text-label-sm text-on-surface-variant">피크 수당 {shortKRW(maxNet)}원</span>
               </div>
             </div>
@@ -126,7 +143,7 @@ export default function TimelineClient({
                 <div className="flex items-end gap-2 h-48 min-w-full" style={{ width: `max(100%, ${rows.length * 40}px)` }}>
                   {rows.map((r) => {
                     const h = maxNet > 0 ? Math.max(6, (r.net / maxNet) * 100) : 6;
-                    const peak = r.round === summary.peakRound;
+                    const peak = r.round === peakRound;
                     return (
                       <button
                         key={r.round}
@@ -171,7 +188,7 @@ export default function TimelineClient({
                 <span className="text-label-md font-bold text-on-surface">누적</span>
               </div>
               {rows.map((r) => {
-                const peak = r.round === summary.peakRound;
+                const peak = r.round === peakRound;
                 return (
                   <button
                     key={r.round}

@@ -104,13 +104,27 @@ export interface RoundDetail {
 
   // 매출(= 그 회차에 넣는 목표매출)과 수당의 누계.
   // 회차마다 아바타를 하나 만드므로 그 회차 매출은 그 회차 목표매출 하나다.
-  sales: number; // 이 회차 매출 (플랜 회차를 넘기면 0 — 더 넣지 않는다)
-  cumulativeSales: number; // 1회차부터 이 회차까지 넣은 매출 합
+  sales: number; // 이 회차에 넣는 총매출 = 살아있는 아바타들의 목표매출 합
+  cumulativeSales: number; // 이 회차까지 새로 만든 아바타들의 목표매출 합
   cumulativeNet: number; // 1회차부터 이 회차까지 받은 실지급 합
-  salesMinusNet: number; // 누적매출 − 누적수당 (양수면 아직 회수 중)
+  netMinusSales: number; // 누적수당 − 누적매출 (양수면 넣은 돈을 넘어섰다)
 }
 
-/** 회차 R 까지 넣은 매출 합 */
+/**
+ * 그 회차에 넣는 총매출 = 그 회차에 살아있는 아바타들의 목표매출 합.
+ * 개인 2회차라면 1회차 아바타와 2회차 아바타의 금액을 더한 값이다.
+ * 아바타가 18살을 넘겨 소멸하면 그만큼 빠진다.
+ */
+export function roundSalesTotal(goals: number[], R: number): number {
+  let sum = 0;
+  for (let c = 1; c <= Math.min(R, goals.length); c++) {
+    const k = R - c + 1;
+    if (k >= 1 && k <= MAX_AGE) sum += goals[c - 1] || 0;
+  }
+  return sum;
+}
+
+/** 회차 R 까지 새로 만든 아바타들의 목표매출 합 */
 export function cumulativeSales(goals: number[], R: number): number {
   let sum = 0;
   for (let r = 1; r <= Math.min(R, goals.length); r++) sum += goals[r - 1] || 0;
@@ -177,7 +191,7 @@ export function roundDetail(goals: number[], cap: number, R: number): RoundDetai
     }
   }
 
-  const sales = R <= goals.length ? goals[R - 1] || 0 : 0;
+  const sales = roundSalesTotal(goals, R);
   const cumSales = cumulativeSales(goals, R);
 
   return {
@@ -188,7 +202,7 @@ export function roundDetail(goals: number[], cap: number, R: number): RoundDetai
     sales,
     cumulativeSales: cumSales,
     cumulativeNet: cumNet,
-    salesMinusNet: cumSales - cumNet,
+    netMinusSales: cumNet - cumSales,
   };
 }
 
@@ -272,11 +286,13 @@ export function planSummary(goals: number[], cap: number): PlanSummary {
     }
   }
 
-  // 자가충당 회차: 그 회차 수당으로 다음 회차 목표매출을 낼 수 있는 첫 회차
+  // 자가충당 회차: 그 회차에 받은 수당으로 다음 회차에 넣어야 할
+  // '총매출'(살아있는 아바타 전부의 목표매출 합)을 낼 수 있는 첫 회차.
+  // 다음 회차 아바타 하나가 아니라 그 회차에 채워야 하는 전체와 견준다.
   let selfFundRound: number | null = null;
-  for (let R = 1; R < n; R++) {
-    const nextGoal = goals[R] || 0; // R+1 회차의 목표매출
-    if (nextGoal > 0 && inflow[R - 1].net >= nextGoal) {
+  for (let R = 1; R < inflow.length; R++) {
+    const nextTotal = roundSalesTotal(goals, R + 1);
+    if (nextTotal > 0 && inflow[R - 1].net >= nextTotal) {
       selfFundRound = R;
       break;
     }

@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { avatarPoint, netPoint, CAP, roundDetail, planSummary, cumulativeSales, MAX_AGE } from "./points";
+import {
+  avatarPoint,
+  netPoint,
+  CAP,
+  roundDetail,
+  planSummary,
+  cumulativeSales,
+  roundSalesTotal,
+  MAX_AGE,
+} from "./points";
 
 // docs/계산규칙-avatarPoint.md 의 검증 정답표를 그대로 고정.
 describe("avatarPoint — 극점 3억(33만형)", () => {
@@ -210,15 +219,28 @@ describe("누적매출 / 누적수당", () => {
   const cap = CAP.won33;
   const goals = [330_000, 440_000, 550_000];
 
-  it("이 회차 매출 = 그 회차에 넣은 목표매출", () => {
-    expect(roundDetail(goals, cap, 1).sales).toBe(330_000);
-    expect(roundDetail(goals, cap, 2).sales).toBe(440_000);
-    expect(roundDetail(goals, cap, 3).sales).toBe(550_000);
+  it("이 회차에 넣는 총매출 = 살아있는 아바타들의 목표매출 합", () => {
+    // 1회차 110만, 2회차 33만 → 2회차에 넣는 총매출은 143만
+    const g = [1_100_000, 330_000];
+    expect(roundDetail(g, cap, 1).sales).toBe(1_100_000);
+    expect(roundDetail(g, cap, 2).sales).toBe(1_430_000);
+    // 3회차엔 새로 안 만들지만 둘 다 살아있으므로 그대로 143만
+    expect(roundDetail(g, cap, 3).sales).toBe(1_430_000);
   });
 
-  it("플랜 회차를 넘기면 더 넣지 않으므로 매출 0", () => {
-    expect(roundDetail(goals, cap, 4).sales).toBe(0);
-    expect(roundDetail(goals, cap, 10).sales).toBe(0);
+  it("아바타가 소멸하면 그만큼 총매출이 줄어든다", () => {
+    const g = [1_100_000, 330_000];
+    expect(roundDetail(g, cap, 18).sales).toBe(1_430_000);
+    // 19회차에 1회차 아바타(110만)가 18살을 넘겨 빠진다
+    expect(roundDetail(g, cap, 19).sales).toBe(330_000);
+    expect(roundDetail(g, cap, 20).sales).toBe(0);
+  });
+
+  it("roundSalesTotal 은 아바타가 늘수록 쌓인다", () => {
+    expect(roundSalesTotal(goals, 1)).toBe(330_000);
+    expect(roundSalesTotal(goals, 2)).toBe(770_000);
+    expect(roundSalesTotal(goals, 3)).toBe(1_320_000);
+    expect(roundSalesTotal(goals, 4)).toBe(1_320_000); // 더 안 만들어도 유지
   });
 
   it("누적매출은 그때까지 넣은 목표매출의 합", () => {
@@ -246,21 +268,21 @@ describe("누적매출 / 누적수당", () => {
     }
   });
 
-  it("누적매출 − 누적수당", () => {
+  it("누적수당 − 누적매출", () => {
     for (let R = 1; R <= goals.length + MAX_AGE; R++) {
       const d = roundDetail(goals, cap, R);
-      expect(d.salesMinusNet).toBe(d.cumulativeSales - d.cumulativeNet);
+      expect(d.netMinusSales).toBe(d.cumulativeNet - d.cumulativeSales);
     }
   });
 
-  it("초반에는 아직 회수 전(양수), 나중에는 수당이 넘어선다(음수)", () => {
-    // 1회차: 33만 넣고 92,832 받음 → 아직 237,168 회수 전
+  it("초반에는 아직 회수 전(음수), 나중에는 수당이 넘어선다(양수)", () => {
+    // 1회차: 33만 넣고 92,832 받음 → 아직 237,168 모자람
     const d1 = roundDetail(goals, cap, 1);
-    expect(d1.salesMinusNet).toBe(330_000 - 92_832);
-    expect(d1.salesMinusNet).toBeGreaterThan(0);
+    expect(d1.netMinusSales).toBe(92_832 - 330_000);
+    expect(d1.netMinusSales).toBeLessThan(0);
     // 마지막 회차에는 수당이 훨씬 크다
     const dLast = roundDetail(goals, cap, goals.length + MAX_AGE - 1);
-    expect(dLast.salesMinusNet).toBeLessThan(0);
+    expect(dLast.netMinusSales).toBeGreaterThan(0);
   });
 
   it("마지막 회차의 누적값 = 플랜 전체 합계", () => {
@@ -298,35 +320,38 @@ describe("손익분기 회차", () => {
     expect(d.cumulativeNet).toBeGreaterThanOrEqual(d.cumulativeSales);
   });
 
-  it("손익분기 전 회차에서는 차액이 양수, 이후에는 0 이하", () => {
+  it("손익분기 전 회차에서는 차액이 음수, 이후에는 0 이상", () => {
     const goals = Array.from({ length: 6 }, () => 330_000);
     const be = planSummary(goals, cap).breakEvenRound!;
     for (let R = 1; R < be; R++) {
-      expect(roundDetail(goals, cap, R).salesMinusNet).toBeGreaterThan(0);
+      expect(roundDetail(goals, cap, R).netMinusSales).toBeLessThan(0);
     }
-    expect(roundDetail(goals, cap, be).salesMinusNet).toBeLessThanOrEqual(0);
+    expect(roundDetail(goals, cap, be).netMinusSales).toBeGreaterThanOrEqual(0);
   });
 });
 
 describe("자가충당 회차", () => {
   const cap = CAP.won33;
 
-  it("그 회차 수당으로 다음 회차 목표매출을 낼 수 있는 첫 회차", () => {
+  it("그 회차 수당으로 다음 회차 '총매출' 을 낼 수 있는 첫 회차", () => {
     const goals = Array.from({ length: 18 }, () => 330_000);
     const s = planSummary(goals, cap);
     const sf = s.selfFundRound!;
     expect(sf).not.toBeNull();
 
-    // 그 회차 수당 ≥ 다음 회차 목표매출
-    expect(s.inflow[sf - 1].net).toBeGreaterThanOrEqual(goals[sf]);
+    // 그 회차 수당 ≥ 다음 회차에 넣어야 할 총매출(살아있는 아바타 전부)
+    expect(s.inflow[sf - 1].net).toBeGreaterThanOrEqual(roundSalesTotal(goals, sf + 1));
     // 앞 회차들은 모자랐다
     for (let R = 1; R < sf; R++) {
-      expect(s.inflow[R - 1].net).toBeLessThan(goals[R]);
+      expect(s.inflow[R - 1].net).toBeLessThan(roundSalesTotal(goals, R + 1));
     }
   });
 
-  it("회차가 하나뿐이면 다음에 넣을 게 없으므로 null", () => {
-    expect(planSummary([330_000], cap).selfFundRound).toBeNull();
+  it("아바타 하나짜리도 그 아바타를 계속 채워야 하므로 자가충당 회차가 있다", () => {
+    // 1회차 아바타 하나여도 살아있는 18회차 동안 매 회차 33만을 채워야 한다.
+    const sf = planSummary([330_000], cap).selfFundRound!;
+    expect(sf).not.toBeNull();
+    expect(planSummary([330_000], cap).inflow[sf - 1].net).toBeGreaterThanOrEqual(330_000);
   });
 
   it("목표매출을 크게 키우면 자가충당이 늦어진다", () => {
