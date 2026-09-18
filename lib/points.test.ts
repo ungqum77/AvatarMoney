@@ -270,3 +270,72 @@ describe("누적매출 / 누적수당", () => {
     expect(last.cumulativeNet).toBe(summary.totalNet);
   });
 });
+
+// ============================================================================
+// 손익분기 회차 / 자가충당 회차
+// ============================================================================
+describe("손익분기 회차", () => {
+  const cap = CAP.won33;
+
+  it("누적수당이 누적매출을 처음 따라잡는 회차", () => {
+    const goals = Array.from({ length: 18 }, () => 330_000);
+    const s = planSummary(goals, cap);
+    const be = s.breakEvenRound!;
+    expect(be).not.toBeNull();
+
+    // 그 회차에서는 따라잡았고
+    const at = roundDetail(goals, cap, be);
+    expect(at.cumulativeNet).toBeGreaterThanOrEqual(at.cumulativeSales);
+    // 바로 앞 회차에서는 아직이었다
+    const before = roundDetail(goals, cap, be - 1);
+    expect(before.cumulativeNet).toBeLessThan(before.cumulativeSales);
+  });
+
+  it("1회차만 있는 플랜도 언젠가는 손익분기를 넘는다", () => {
+    const s = planSummary([330_000], cap);
+    expect(s.breakEvenRound).not.toBeNull();
+    const d = roundDetail([330_000], cap, s.breakEvenRound!);
+    expect(d.cumulativeNet).toBeGreaterThanOrEqual(d.cumulativeSales);
+  });
+
+  it("손익분기 전 회차에서는 차액이 양수, 이후에는 0 이하", () => {
+    const goals = Array.from({ length: 6 }, () => 330_000);
+    const be = planSummary(goals, cap).breakEvenRound!;
+    for (let R = 1; R < be; R++) {
+      expect(roundDetail(goals, cap, R).salesMinusNet).toBeGreaterThan(0);
+    }
+    expect(roundDetail(goals, cap, be).salesMinusNet).toBeLessThanOrEqual(0);
+  });
+});
+
+describe("자가충당 회차", () => {
+  const cap = CAP.won33;
+
+  it("그 회차 수당으로 다음 회차 목표매출을 낼 수 있는 첫 회차", () => {
+    const goals = Array.from({ length: 18 }, () => 330_000);
+    const s = planSummary(goals, cap);
+    const sf = s.selfFundRound!;
+    expect(sf).not.toBeNull();
+
+    // 그 회차 수당 ≥ 다음 회차 목표매출
+    expect(s.inflow[sf - 1].net).toBeGreaterThanOrEqual(goals[sf]);
+    // 앞 회차들은 모자랐다
+    for (let R = 1; R < sf; R++) {
+      expect(s.inflow[R - 1].net).toBeLessThan(goals[R]);
+    }
+  });
+
+  it("회차가 하나뿐이면 다음에 넣을 게 없으므로 null", () => {
+    expect(planSummary([330_000], cap).selfFundRound).toBeNull();
+  });
+
+  it("목표매출을 크게 키우면 자가충당이 늦어진다", () => {
+    const flat = planSummary(Array.from({ length: 12 }, () => 330_000), cap).selfFundRound!;
+    // 회차마다 크게 올리면 따라잡기 더 어렵다
+    const rising = planSummary(
+      Array.from({ length: 12 }, (_, i) => 330_000 + i * 1_100_000),
+      cap
+    ).selfFundRound;
+    expect(rising === null || rising >= flat).toBe(true);
+  });
+});

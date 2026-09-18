@@ -207,6 +207,19 @@ export interface PlanSummary {
   perAvatarNet: number[]; // 각 회차 아바타의 평생 실지급 (시뮬레이터 행 표시용)
   inflow: InflowRow[]; // 회차별 유입(타임라인)
   peakRound: number; // 유입이 가장 큰 회차
+
+  /**
+   * 손익분기 회차 — 누적수당이 누적매출을 처음으로 따라잡는 회차.
+   * 끝까지 못 따라잡으면 null.
+   */
+  breakEvenRound: number | null;
+
+  /**
+   * 자가충당 회차 — 그 회차에 받은 수당만으로 다음 회차 목표매출을
+   * 낼 수 있게 되는 첫 회차. 이 회차부터는 주머니에서 더 안 꺼내도 된다.
+   * 마지막 회차 뒤에는 넣을 게 없으므로 그 전까지만 본다. 없으면 null.
+   */
+  selfFundRound: number | null;
 }
 
 /**
@@ -250,5 +263,34 @@ export function planSummary(goals: number[], cap: number): PlanSummary {
 
   const roi = totalInvest > 0 ? ((totalNet - totalInvest) / totalInvest) * 100 : 0;
 
-  return { totalInvest, totalGross, totalNet, roi, perAvatarNet, inflow, peakRound };
+  // 손익분기 회차: 누적수당이 누적매출을 처음 따라잡는 회차
+  let breakEvenRound: number | null = null;
+  for (const row of inflow) {
+    if (row.cumulative >= cumulativeSales(goals, row.round)) {
+      breakEvenRound = row.round;
+      break;
+    }
+  }
+
+  // 자가충당 회차: 그 회차 수당으로 다음 회차 목표매출을 낼 수 있는 첫 회차
+  let selfFundRound: number | null = null;
+  for (let R = 1; R < n; R++) {
+    const nextGoal = goals[R] || 0; // R+1 회차의 목표매출
+    if (nextGoal > 0 && inflow[R - 1].net >= nextGoal) {
+      selfFundRound = R;
+      break;
+    }
+  }
+
+  return {
+    totalInvest,
+    totalGross,
+    totalNet,
+    roi,
+    perAvatarNet,
+    inflow,
+    peakRound,
+    breakEvenRound,
+    selfFundRound,
+  };
 }
