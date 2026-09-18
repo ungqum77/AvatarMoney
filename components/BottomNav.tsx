@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Icon, { type IconName } from "@/components/Icon";
 
-const TABS = [
+const TABS: { href: string; icon: IconName; label: string }[] = [
   { href: "/plans", icon: "home", label: "홈" },
   { href: "/simulator", icon: "calculate", label: "시뮬레이터" },
   { href: "/timeline", icon: "timeline", label: "타임라인" },
@@ -29,12 +30,7 @@ export default function BottomNav() {
                 on ? "text-primary" : "text-on-surface-variant"
               }`}
             >
-              <span
-                className="material-symbols-outlined text-[26px]"
-                style={on ? { fontVariationSettings: "'FILL' 1" } : undefined}
-              >
-                {t.icon}
-              </span>
+              <Icon name={t.icon} size={26} strokeWidth={on ? 2.75 : 2} />
               <span className={`text-label-sm mt-0.5 ${on ? "font-bold" : "font-medium"}`}>{t.label}</span>
             </Link>
           );

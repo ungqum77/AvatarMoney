@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { won } from "@/lib/format";
 import { planSummary, avatarNetLifetime, PLAN_META, type PlanType } from "@/lib/points";
+import Icon from "@/components/Icon";
 
 export default function SimulatorClient({
   id,
@@ -77,7 +78,7 @@ export default function SimulatorClient({
         <div className="h-16 px-margin-mobile flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Link href="/plans" className="w-11 h-11 flex items-center justify-center rounded-full text-on-surface active:bg-surface-container">
-              <span className="material-symbols-outlined text-[26px]">arrow_back</span>
+              <Icon name="arrow_back" size={26} />
             </Link>
             <h1 className="text-headline-sm font-headline-sm text-on-surface font-bold">시뮬레이터</h1>
           </div>
@@ -85,7 +86,7 @@ export default function SimulatorClient({
             href={`/present?plan=${id}`}
             className="min-h-[44px] px-3 rounded-xl bg-secondary text-on-secondary text-label-md font-bold flex items-center gap-1"
           >
-            <span className="material-symbols-outlined text-[20px]">present_to_all</span>보여주기
+            <Icon name="present_to_all" size={20} />보여주기
           </Link>
         </div>
       </header>
@@ -137,7 +138,7 @@ export default function SimulatorClient({
                 </div>
               </div>
               <div className="inline-flex items-center gap-1 bg-secondary-container text-on-secondary-container px-3 py-1.5 rounded-full text-body-lg-bold font-body-lg-bold font-bold">
-                <span className="material-symbols-outlined text-[18px]">trending_up</span>+{summary.roi.toFixed(1)}%
+                <Icon name="trending_up" size={18} />+{summary.roi.toFixed(1)}%
               </div>
             </div>
           </div>
@@ -155,7 +156,7 @@ export default function SimulatorClient({
             onClick={addRound}
             className="min-h-[48px] px-3.5 rounded-xl bg-surface-container text-primary text-label-md font-semibold flex items-center gap-1 active:scale-95"
           >
-            <span className="material-symbols-outlined text-[20px]">add_circle</span>회차 추가
+            <Icon name="add_circle" size={20} />회차 추가
           </button>
         </div>
 
@@ -179,7 +180,7 @@ export default function SimulatorClient({
                         aria-label="이 회차 삭제"
                         className="w-11 h-11 rounded-lg bg-error-container text-on-error-container flex items-center justify-center active:scale-95"
                       >
-                        <span className="material-symbols-outlined text-[18px]">delete</span>
+                        <Icon name="delete" size={18} />
                       </button>
                     )}
                   </div>
@@ -198,7 +199,7 @@ export default function SimulatorClient({
                       aria-label="감소"
                       className="w-14 h-14 rounded-xl bg-surface-container-lowest text-primary flex items-center justify-center shadow-sm active:scale-90"
                     >
-                      <span className="material-symbols-outlined text-[28px]">remove</span>
+                      <Icon name="remove" size={28} />
                     </button>
                     <div className="flex-1 text-center min-w-0">
                       <span className="text-headline-md font-headline-md text-on-surface font-extrabold num-font">{won(goal)}</span>
@@ -209,7 +210,7 @@ export default function SimulatorClient({
                       aria-label="증가"
                       className="w-14 h-14 rounded-xl bg-surface-container-lowest text-primary flex items-center justify-center shadow-sm active:scale-90"
                     >
-                      <span className="material-symbols-outlined text-[28px]">add</span>
+                      <Icon name="add" size={28} />
                     </button>
                   </div>
                   <div className="flex items-center gap-1.5 overflow-x-auto py-1">
@@ -232,7 +233,7 @@ export default function SimulatorClient({
                         onClick={() => setRound(i, rounds[i - 1])}
                         className="min-h-[48px] px-3.5 rounded-xl bg-surface-container-lowest text-on-surface-variant text-label-md font-semibold flex items-center gap-1 whitespace-nowrap"
                       >
-                        <span className="material-symbols-outlined text-[16px]">history</span>직전값
+                        <Icon name="history" size={16} />직전값
                       </button>
                     )}
                   </div>
@@ -249,21 +250,21 @@ export default function SimulatorClient({
             disabled={saving}
             className="w-full h-14 bg-primary text-on-primary rounded-xl text-body-lg-bold font-body-lg-bold flex items-center justify-center gap-2 shadow-lg shadow-primary/25 active:scale-[0.98] disabled:opacity-60"
           >
-            <span className="material-symbols-outlined text-[24px]">save</span>
+            <Icon name="save" size={24} />
             {saving ? "저장 중..." : "플랜 저장"}
           </button>
           <Link
             href={`/timeline?plan=${id}`}
             className="w-full min-h-[48px] text-on-surface-variant text-body-md font-body-md flex items-center justify-center gap-1.5"
           >
-            <span className="material-symbols-outlined text-[18px]">timeline</span>타임라인으로 보기
+            <Icon name="timeline" size={18} />타임라인으로 보기
           </Link>
         </div>
       </main>
 
       {toast && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 w-[90%] max-w-[400px] bg-inverse-surface text-inverse-on-surface px-4 py-3 rounded-xl shadow-xl flex items-center gap-2.5 z-50">
-          <span className="material-symbols-outlined text-secondary-container text-[22px]">check_circle</span>
+          <Icon name="check_circle" size={22} className="text-secondary-container" />
           <span className="text-body-md font-body-md">{toast}</span>
         </div>
       )}

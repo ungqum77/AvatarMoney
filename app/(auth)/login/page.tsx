@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatPhone } from "@/lib/format";
+import Icon from "@/components/Icon";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -99,7 +100,7 @@ export default function LoginPage() {
 
           {error && (
             <div className="p-4 bg-rose-50 border-2 border-rose-200 rounded-2xl flex items-start gap-3">
-              <span className="material-symbols-outlined text-rose-600">error</span>
+              <Icon name="error" size={24} className="text-rose-600" />
               <div>
                 <h4 className="text-[19px] font-bold text-rose-900 leading-snug">{error}</h4>
                 <p className="text-[16px] text-rose-700 font-medium mt-1">입력하신 정보를 다시 확인해 주세요.</p>

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { won, shortKRW } from "@/lib/format";
 import { planSummary, PLAN_META, type PlanType } from "@/lib/points";
+import Icon from "@/components/Icon";
 
 export interface PresentPlan {
   id: number;
@@ -49,7 +50,7 @@ export default function PresentClient({
             onClick={() => router.push("/plans")}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-slate-800/90 text-slate-200 text-base font-bold border border-slate-700 active:scale-95"
           >
-            <span className="material-symbols-outlined text-[20px]">close</span>닫기
+            <Icon name="close" size={20} />닫기
           </button>
         </header>
 
@@ -89,7 +90,7 @@ export default function PresentClient({
 
             <div className="my-3.5 flex flex-col items-center">
               <div className="w-11 h-11 rounded-full bg-indigo-600/30 border border-indigo-500/50 flex items-center justify-center text-indigo-300 animate-bounce">
-                <span className="material-symbols-outlined">south</span>
+                <Icon name="south" size={24} />
               </div>
               <span className="mt-1 text-xs font-bold text-indigo-300 tracking-wider">예상 수익률 +{summary.roi.toFixed(1)}%</span>
             </div>
@@ -134,7 +135,7 @@ export default function PresentClient({
             onClick={() => router.push("/plans")}
             className="w-full py-4 rounded-2xl bg-gradient-to-r from-slate-800 to-slate-700 text-white font-extrabold text-lg flex items-center justify-center gap-2 border border-slate-600 active:scale-[0.98]"
           >
-            <span className="material-symbols-outlined">arrow_back</span>프레젠테이션 종료
+            <Icon name="arrow_back" size={24} />프레젠테이션 종료
           </button>
           <p className="text-center text-[12px] text-slate-500 font-medium mt-2.5">
             폰을 들어 상대방에게 직접 보여주는 전용 화면입니다.

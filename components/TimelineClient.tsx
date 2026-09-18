@@ -5,6 +5,7 @@ import Link from "next/link";
 import { won, shortKRW } from "@/lib/format";
 import { planSummary, PLAN_META, type PlanType } from "@/lib/points";
 import AdBanner from "@/components/AdBanner";
+import Icon from "@/components/Icon";
 
 export interface TimelinePlan {
   id: number;
@@ -36,7 +37,7 @@ export default function TimelineClient({
       <header className="sticky top-0 z-40 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.03)] pt-safe">
         <div className="h-16 px-margin-mobile flex items-center gap-2">
           <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
-            <span className="material-symbols-outlined text-on-primary text-[20px]">timeline</span>
+            <Icon name="timeline" size={20} className="text-on-primary" />
           </div>
           <h1 className="text-headline-sm font-headline-sm text-on-surface font-bold">수당 타임라인</h1>
         </div>
@@ -46,7 +47,7 @@ export default function TimelineClient({
         {plans.length === 0 || !plan || !summary ? (
           <div className="flex flex-col items-center text-center py-16 px-4 rounded-2xl bg-surface-container-lowest">
             <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center text-primary mb-3">
-              <span className="material-symbols-outlined text-[32px]">timeline</span>
+              <Icon name="timeline" size={32} />
             </div>
             <h4 className="text-headline-sm font-headline-sm text-on-surface font-bold">플랜이 없습니다</h4>
             <p className="text-body-md font-body-md text-on-surface-variant mt-1">먼저 홈에서 플랜을 만들어주세요.</p>
@@ -80,7 +81,7 @@ export default function TimelineClient({
             <section className="p-space-lg rounded-2xl bg-surface-container-lowest shadow-md">
               <div className="flex items-center justify-between mb-1">
                 <span className="text-label-md font-semibold text-on-surface-variant flex items-center gap-1.5">
-                  <span className="material-symbols-outlined text-primary text-[20px]">trending_up</span>총 예상 수당(실지급)
+                  <Icon name="trending_up" size={20} className="text-primary" />총 예상 수당(실지급)
                 </span>
                 <span className="px-2.5 py-1 rounded-full bg-secondary-container/60 text-on-secondary-container text-label-sm font-bold">
                   +{summary.roi.toFixed(1)}%
@@ -171,7 +172,7 @@ export default function TimelineClient({
               href={`/plans/${plan.id}`}
               className="w-full min-h-[52px] rounded-2xl bg-surface-container-low text-primary font-body-lg-bold text-body-lg-bold flex items-center justify-center gap-2"
             >
-              <span className="material-symbols-outlined text-[22px]">tune</span>이 플랜 수정하기
+              <Icon name="tune" size={22} />이 플랜 수정하기
             </Link>
 
             <AdBanner />

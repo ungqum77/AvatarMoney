@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Icon from "@/components/Icon";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -41,7 +42,7 @@ export default function InstallPrompt() {
     return (
       <div className="mx-margin-mobile mb-space-md rounded-2xl bg-primary text-on-primary p-space-md flex items-center justify-between gap-2 shadow-md">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="material-symbols-outlined text-[26px]">install_mobile</span>
+          <Icon name="install_mobile" size={26} />
           <span className="text-body-lg-bold font-body-lg-bold">홈 화면에 앱으로 추가하기</span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
@@ -56,7 +57,7 @@ export default function InstallPrompt() {
             추가
           </button>
           <button onClick={() => setDismissed(true)} aria-label="닫기" className="w-10 h-10 flex items-center justify-center">
-            <span className="material-symbols-outlined">close</span>
+            <Icon name="close" size={24} />
           </button>
         </div>
       </div>
@@ -66,12 +67,12 @@ export default function InstallPrompt() {
   if (showIos) {
     return (
       <div className="mx-margin-mobile mb-space-md rounded-2xl bg-surface-container-high p-space-md flex items-start gap-2 shadow-sm">
-        <span className="material-symbols-outlined text-primary text-[24px]">ios_share</span>
+        <Icon name="ios_share" size={24} className="text-primary" />
         <p className="flex-1 text-body-md font-body-md text-on-surface">
           <b>홈 화면에 추가</b>: 하단의 <b>공유</b> 버튼을 누른 뒤 <b>&ldquo;홈 화면에 추가&rdquo;</b>를 선택하세요.
         </p>
         <button onClick={() => setDismissed(true)} aria-label="닫기" className="w-8 h-8 flex items-center justify-center shrink-0">
-          <span className="material-symbols-outlined text-on-surface-variant">close</span>
+          <Icon name="close" size={24} className="text-on-surface-variant" />
         </button>
       </div>
     );

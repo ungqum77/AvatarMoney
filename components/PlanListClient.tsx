@@ -8,6 +8,7 @@ import type { PlanType } from "@/lib/points";
 import { PLAN_META } from "@/lib/points";
 import InstallPrompt from "@/components/InstallPrompt";
 import AdBanner from "@/components/AdBanner";
+import Icon from "@/components/Icon";
 
 export interface PlanCardData {
   id: number;
@@ -78,7 +79,7 @@ export default function PlanListClient({
         <div className="h-16 px-margin-mobile flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
-              <span className="material-symbols-outlined text-on-primary text-[20px]">savings</span>
+              <Icon name="savings" size={20} className="text-on-primary" />
             </div>
             <div className="flex flex-col">
               <span className="text-label-sm text-on-surface-variant leading-none">Avatar Money</span>
@@ -86,7 +87,7 @@ export default function PlanListClient({
             </div>
           </div>
           <Link href="/me" className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-            <span className="material-symbols-outlined text-on-primary text-[20px]">person</span>
+            <Icon name="person" size={20} className="text-on-primary" />
           </Link>
         </div>
       </header>
@@ -123,14 +124,14 @@ export default function PlanListClient({
           onClick={() => setShowNew(true)}
           className="w-full min-h-[60px] rounded-2xl bg-primary text-on-primary flex items-center justify-center gap-2 text-headline-sm font-headline-sm font-bold shadow-lg shadow-primary/20 active:scale-[0.98]"
         >
-          <span className="material-symbols-outlined text-[28px]">add_circle</span>새 플랜 만들기
+          <Icon name="add_circle" size={28} />새 플랜 만들기
         </button>
 
         {/* 카드 목록 */}
         {cards.length === 0 ? (
           <div className="flex flex-col items-center text-center py-12 px-4 rounded-2xl bg-surface-container-lowest">
             <div className="w-16 h-16 rounded-full bg-surface-container-high flex items-center justify-center text-primary mb-3">
-              <span className="material-symbols-outlined text-[32px]">folder_open</span>
+              <Icon name="folder_open" size={32} />
             </div>
             <h4 className="text-headline-sm font-headline-sm text-on-surface font-bold">저장된 플랜이 없습니다</h4>
             <p className="text-body-md font-body-md text-on-surface-variant mt-1">
@@ -178,13 +179,13 @@ export default function PlanListClient({
                     href={`/plans/${c.id}`}
                     className="flex-1 min-h-[52px] rounded-xl bg-primary text-on-primary text-label-md font-bold flex items-center justify-center gap-1.5 active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-[20px]">tune</span>열기
+                    <Icon name="tune" size={20} />열기
                   </Link>
                   <Link
                     href={`/present?plan=${c.id}`}
                     className="min-h-[52px] px-3.5 rounded-xl bg-secondary text-on-secondary text-label-md font-bold flex items-center justify-center gap-1 active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-[20px]">present_to_all</span>보여주기
+                    <Icon name="present_to_all" size={20} />보여주기
                   </Link>
                   <button
                     onClick={() => duplicate(c)}
@@ -192,14 +193,14 @@ export default function PlanListClient({
                     aria-label="복제"
                     className="w-12 h-12 rounded-xl bg-surface-container-high text-on-surface flex items-center justify-center active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-[20px]">content_copy</span>
+                    <Icon name="content_copy" size={20} />
                   </button>
                   <button
                     onClick={() => remove(c.id)}
                     aria-label="삭제"
                     className="w-12 h-12 rounded-xl bg-error-container text-on-error-container flex items-center justify-center active:scale-95"
                   >
-                    <span className="material-symbols-outlined text-[20px]">delete</span>
+                    <Icon name="delete" size={20} />
                   </button>
                 </div>
               </article>
@@ -237,7 +238,7 @@ function NewPlanModal({
         <div className="flex items-center justify-between">
           <h3 className="text-headline-md font-headline-md text-on-surface font-bold">새 플랜 만들기</h3>
           <button onClick={onClose} className="w-10 h-10 flex items-center justify-center" aria-label="닫기">
-            <span className="material-symbols-outlined">close</span>
+            <Icon name="close" size={24} />
           </button>
         </div>
 

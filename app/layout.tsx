@@ -33,6 +33,20 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="ko">
+      {/* eslint-disable @next/next/no-page-custom-font -- App Router 의 루트 layout 이라 모든 페이지에 적용된다 */}
+      <head>
+        {/* 본문 폰트. 아이콘은 components/Icon.tsx 에 SVG 로 내장되어 있어 폰트가 필요 없다. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap"
+        />
+        <link
+          rel="stylesheet"
+          href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css"
+        />
+      </head>
       <body>
         {ADSENSE_CLIENT ? (
           <Script

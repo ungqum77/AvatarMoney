@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatPhone } from "@/lib/format";
+import Icon from "@/components/Icon";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -52,7 +53,7 @@ export default function SignupPage() {
       <header className="px-margin-mobile pt-safe">
         <div className="h-16 flex items-center gap-2">
           <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-on-primary text-[20px]">savings</span>
+            <Icon name="savings" size={20} className="text-on-primary" />
           </div>
           <h1 className="text-headline-md font-headline-md text-on-surface font-bold">회원가입</h1>
         </div>
@@ -62,7 +63,7 @@ export default function SignupPage() {
         {/* 환영 배너 */}
         <div className="w-full bg-surface-container-high rounded-xl p-space-md shadow-sm mb-space-lg flex items-start gap-space-sm">
           <div className="w-14 h-14 rounded-full bg-primary shrink-0 flex items-center justify-center shadow-md">
-            <span className="material-symbols-outlined text-on-primary text-[32px]">sentiment_satisfied</span>
+            <Icon name="sentiment_satisfied" size={32} className="text-on-primary" />
           </div>
           <div className="min-w-0">
             <div className="inline-flex items-center gap-1 mb-1">
@@ -121,9 +122,7 @@ export default function SignupPage() {
                 className="absolute right-1 top-1/2 -translate-y-1/2 min-w-[56px] min-h-[56px] flex flex-col items-center justify-center rounded-xl active:scale-95"
                 aria-label="비밀번호 보기 전환"
               >
-                <span className="material-symbols-outlined text-[30px] text-primary">
-                  {showPw ? "visibility_off" : "visibility"}
-                </span>
+                <Icon name={showPw ? "visibility_off" : "visibility"} size={30} className="text-primary" />
                 <span className="text-[11px] leading-none text-on-surface font-bold mt-0.5">
                   {showPw ? "숨기기" : "보기"}
                 </span>
@@ -131,10 +130,10 @@ export default function SignupPage() {
             </div>
             <div className="mt-2 flex items-center gap-2">
               <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-label-md font-semibold ${pwLenOk ? "bg-secondary-container text-on-secondary-container" : "bg-surface-container text-on-surface-variant"}`}>
-                <span className="material-symbols-outlined text-[16px]">check</span>6자리 이상
+                <Icon name="check" size={16} />6자리 이상
               </span>
               <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-label-md font-semibold ${pwCombOk ? "bg-secondary-container text-on-secondary-container" : "bg-surface-container text-on-surface-variant"}`}>
-                <span className="material-symbols-outlined text-[16px]">check</span>영문·숫자
+                <Icon name="check" size={16} />영문·숫자
               </span>
             </div>
           </div>
@@ -171,7 +170,7 @@ export default function SignupPage() {
 
           {error && (
             <div className="p-4 bg-error-container rounded-xl flex items-center gap-2">
-              <span className="material-symbols-outlined text-on-error-container">error</span>
+              <Icon name="error" size={24} className="text-on-error-container" />
               <span className="text-body-lg-bold font-body-lg-bold text-on-error-container">{error}</span>
             </div>
           )}
@@ -182,14 +181,14 @@ export default function SignupPage() {
             className="w-full min-h-[64px] h-[68px] bg-primary-container text-on-primary rounded-2xl text-headline-md font-headline-md shadow-md active:scale-[0.98] flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <span>{loading ? "가입 중..." : "가입 완료하기"}</span>
-            {!loading && <span className="material-symbols-outlined text-[28px]">arrow_forward</span>}
+            {!loading && <Icon name="arrow_forward" size={28} />}
           </button>
 
           <div className="w-full py-space-sm flex flex-col items-center text-center">
             <p className="text-body-lg font-body-lg text-on-surface-variant mb-1">이미 계정이 있으신가요?</p>
             <Link href="/login" className="inline-flex items-center gap-1 min-h-[56px] px-space-md text-body-lg-bold font-body-lg-bold text-primary underline underline-offset-4">
               기존 아이디로 로그인하기
-              <span className="material-symbols-outlined text-[22px]">login</span>
+              <Icon name="login" size={22} />
             </Link>
           </div>
         </form>
