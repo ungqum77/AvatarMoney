@@ -1,6 +1,7 @@
 import { getSessionUser } from "@/lib/auth/session";
 import { formatPhone } from "@/lib/format";
 import LogoutButton from "@/components/LogoutButton";
+import ChangePassword from "@/components/ChangePassword";
 import Icon from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
@@ -38,6 +39,8 @@ export default async function MePage() {
             내 플랜은 안전하게 저장되어 어느 기기에서 로그인해도 그대로 볼 수 있습니다.
           </p>
         </section>
+
+        <ChangePassword />
 
         <LogoutButton />
       </main>

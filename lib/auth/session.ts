@@ -34,6 +34,11 @@ export async function createSession(userId: number): Promise<void> {
   });
 }
 
+/** 지금 이 기기의 세션 토큰(없으면 null) */
+export function currentSessionToken(): string | null {
+  return cookies().get(COOKIE)?.value ?? null;
+}
+
 /** 현재 세션 사용자 조회(없으면 null) */
 export async function getSessionUser(): Promise<SessionUser | null> {
   const token = cookies().get(COOKIE)?.value;

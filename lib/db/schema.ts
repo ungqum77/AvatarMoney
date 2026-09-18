@@ -32,6 +32,26 @@ export const sessions = sqliteTable("sessions", {
   createdAt: integer("created_at").notNull(),
 });
 
+// 비밀번호 재설정 토큰 (이름+휴대폰 확인에 성공하면 발급, 10분 유효, 1회용)
+export const passwordResets = sqliteTable("password_resets", {
+  token: text("token").primaryKey(),
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id),
+  expiresAt: integer("expires_at").notNull(),
+  usedAt: integer("used_at"),
+  createdAt: integer("created_at").notNull(),
+});
+
+// 시도 횟수 제한용 기록
+export const authAttempts = sqliteTable("auth_attempts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  phone: text("phone").notNull(),
+  kind: text("kind").notNull(), // 'reset'
+  ok: integer("ok").notNull(), // 0 실패 / 1 성공
+  at: integer("at").notNull(),
+});
+
 export type User = typeof users.$inferSelect;
 export type Plan = typeof plans.$inferSelect;
 export type Session = typeof sessions.$inferSelect;

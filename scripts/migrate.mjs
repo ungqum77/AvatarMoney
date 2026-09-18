@@ -1,11 +1,13 @@
 // Turso에 테이블을 만든다. turso CLI 없이 실행 가능.
 //   npm run db:migrate
-// .env.local 의 TURSO_DATABASE_URL / TURSO_AUTH_TOKEN 을 사용한다.
-import { readFileSync, existsSync } from "node:fs";
+// drizzle/*.sql 을 파일명 순서대로 전부 실행한다.
+// 모든 SQL 이 CREATE TABLE IF NOT EXISTS 라 여러 번 돌려도 안전하다.
+import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { join } from "node:path";
 import { createClient } from "@libsql/client";
 
 const ENV_FILE = ".env.local";
-const SQL_FILE = "drizzle/0000_init.sql";
+const SQL_DIR = "drizzle";
 
 function loadEnv(file) {
   if (!existsSync(file)) return;
@@ -31,20 +33,20 @@ if (!url) {
 }
 
 const db = createClient({ url, authToken });
-const sql = readFileSync(SQL_FILE, "utf8");
+const files = readdirSync(SQL_DIR).filter((f) => f.endsWith(".sql")).sort();
 
 console.log(`DB: ${url}`);
-console.log(`SQL: ${SQL_FILE} 실행 중...`);
+for (const f of files) {
+  process.stdout.write(`  ${f} ... `);
+  await db.executeMultiple(readFileSync(join(SQL_DIR, f), "utf8"));
+  console.log("완료");
+}
 
-await db.executeMultiple(sql);
-
-// 결과 확인
 const { rows } = await db.execute(
   "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name"
 );
-console.log(`\n완료. 현재 테이블: ${rows.map((r) => r.name).join(", ")}`);
-
-for (const t of ["users", "plans", "sessions"]) {
+console.log(`\n현재 테이블: ${rows.map((r) => r.name).join(", ")}`);
+for (const t of rows.map((r) => r.name)) {
   const info = await db.execute(`PRAGMA table_info(${t})`);
   console.log(`  - ${t}: ${info.rows.map((c) => c.name).join(", ")}`);
 }
