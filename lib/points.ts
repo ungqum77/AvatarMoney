@@ -19,6 +19,13 @@ export const WITHHOLD = 0.033;
 export const MAX_AGE = 18;
 
 /**
+ * 플랜을 보는 기준 회차. 모든 합계(총매출·총수당·수익률·손익분기)가
+ * 1~18회차 안에서 계산된다. 18회차에 만든 아바타는 그 뒤로도 살지만
+ * 기준 밖이므로 세지 않는다.
+ */
+export const PLAN_HORIZON = 18;
+
+/**
  * 한 아바타의 나이 k 회차 산출 포인트(세전).
  * @param goal 그 아바타(회차)의 목표금액
  * @param k    아바타 나이(현재회차 − 생성회차 + 1). 1~18만 유효.
@@ -57,6 +64,25 @@ export function avatarGrossLifetime(goal: number, cap: number): number {
 export function avatarNetLifetime(goal: number, cap: number): number {
   let sum = 0;
   for (let k = 1; k <= MAX_AGE; k++) sum += netPoint(avatarPoint(goal, k, cap));
+  return sum;
+}
+
+/**
+ * bornRound 회차에 만든 아바타가 기준 회차(18회차) 안에서 주는 실지급 합.
+ * 5회차에 만든 아바타는 5~18회차까지 14번만 받는다. 평생(18번)이 아니다.
+ */
+export function avatarNetInPlan(
+  goal: number,
+  cap: number,
+  bornRound: number,
+  horizon: number = PLAN_HORIZON
+): number {
+  let sum = 0;
+  for (let R = bornRound; R <= horizon; R++) {
+    const k = R - bornRound + 1;
+    if (k > MAX_AGE) break;
+    sum += netPoint(avatarPoint(goal, k, cap));
+  }
   return sum;
 }
 
@@ -271,20 +297,22 @@ export interface PlanSummary {
  */
 export function planSummary(goals: number[], cap: number): PlanSummary {
   const n = goals.length;
-  const lastR = n + MAX_AGE - 1; // 마지막 아바타가 18회 사는 회차까지
+  // 모든 합계는 18회차 기준이다. 18회차에 만든 아바타가 그 뒤로도 살지만
+  // 기준 밖이라 세지 않는다.
+  const lastR = PLAN_HORIZON;
+
   // 매 회차 살아있는 아바타 전부의 매출을 채운다. 한 번만 세면 안 된다.
   const totalInvest = cumulativeSales(goals, lastR);
 
-  // 각 아바타(회차 c) 평생 실지급/세전
-  const perAvatarNet = goals.map((g) => avatarNetLifetime(g, cap));
-  const totalNet = perAvatarNet.reduce((a, b) => a + b, 0);
-  const totalGross = goals.reduce((a, g) => a + avatarGrossLifetime(g, cap), 0);
+  // 아바타별 몫도 18회차 안에서만 센다. 5회차 아바타는 14번만 받는다.
+  const perAvatarNet = goals.map((g, i) => avatarNetInPlan(g, cap, i + 1, lastR));
 
-  // 회차별 유입: R = 1 .. n + 17 (마지막 아바타가 18회 생존)
+  // 회차별 유입: R = 1 .. 18
   const inflow: InflowRow[] = [];
   let cumulative = 0;
   let peakRound = 1;
   let peakVal = -1;
+  let totalGross = 0;
   for (let R = 1; R <= lastR; R++) {
     let net = 0;
     let gross = 0;
@@ -297,6 +325,7 @@ export function planSummary(goals: number[], cap: number): PlanSummary {
       }
     }
     cumulative += net;
+    totalGross += gross;
     inflow.push({ round: R, net, gross, cumulative });
     if (net > peakVal) {
       peakVal = net;
@@ -304,6 +333,7 @@ export function planSummary(goals: number[], cap: number): PlanSummary {
     }
   }
 
+  const totalNet = cumulative;
   const roi = totalInvest > 0 ? ((totalNet - totalInvest) / totalInvest) * 100 : 0;
 
   // 손익분기 회차: 누적수당이 누적매출을 처음 따라잡는 회차.

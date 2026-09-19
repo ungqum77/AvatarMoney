@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { won, shortKRW, multiple, bigWon } from "@/lib/format";
 import {
   planSummary,
-  avatarNetLifetime,
+  avatarNetInPlan,
   PLAN_META,
   PLAN_TEMPLATES,
   MAX_AGE,
@@ -103,7 +103,10 @@ export default function SimulatorClient({
     if (!on) setRounds((rs) => rs.map((v) => (v <= 0 ? meta.min : v)));
   }
   function addRound() {
-    setRounds((rs) => [...rs, rs.length ? rs[rs.length - 1] : meta.min]);
+    // 18회차가 기준이므로 그 이상은 만들지 않는다
+    setRounds((rs) =>
+      rs.length >= MAX_AGE ? rs : [...rs, rs.length ? rs[rs.length - 1] : meta.min]
+    );
   }
   function removeRound(i: number) {
     setRounds((rs) => (rs.length <= 1 ? rs : rs.filter((_, idx) => idx !== i)));
@@ -475,7 +478,7 @@ export default function SimulatorClient({
               1회차 · 본코드
             </span>
             <span className="text-[17px] font-bold text-secondary">
-              평생 +{shortKRW(avatarNetLifetime(rounds[0] ?? meta.min, meta.cap))}원
+              18회차까지 +{shortKRW(avatarNetInPlan(rounds[0] ?? meta.min, meta.cap, 1))}원
             </span>
           </div>
 
@@ -552,7 +555,7 @@ export default function SimulatorClient({
                       {goal <= 0 ? "아바타 안 만듦" : `${won(goal)}원`}
                     </div>
                     <div className="text-[14px] font-bold text-secondary leading-tight truncate">
-                      {goal <= 0 ? "수당 없음" : `평생 +${shortKRW(avatarNetLifetime(goal, meta.cap))}`}
+                      {goal <= 0 ? "수당 없음" : `18회차까지 +${shortKRW(avatarNetInPlan(goal, meta.cap, i + 1))}`}
                     </div>
                   </button>
                   <button
@@ -639,7 +642,7 @@ export default function SimulatorClient({
           cap={meta.cap}
           capLabel={meta.capLabel}
           round={openRound}
-          lastRound={Math.min(MAX_AGE, summary.inflow.length)}
+          lastRound={summary.inflow.length}
           onRound={setOpenRound}
           onClose={() => setOpenRound(null)}
         />

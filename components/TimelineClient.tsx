@@ -6,9 +6,7 @@ import { won, shortKRW, multiple, bigWon } from "@/lib/format";
 import {
   planSummary,
   roundDetail,
-  avatarNetLifetime,
   PLAN_META,
-  MAX_AGE,
   type PlanType,
 } from "@/lib/points";
 import AdBanner from "@/components/AdBanner";
@@ -37,14 +35,13 @@ export default function TimelineClient({
     [plan]
   );
 
-  // 18회차까지만 본다. 그 뒤로도 수당은 나오지만 회원이 보는 단위는 18회차다.
+  // planSummary 가 이미 18회차까지만 내놓는다. 수당이 0인 회차만 걸러낸다.
   const rows = useMemo(
-    () => (summary ? summary.inflow.filter((r) => r.net > 0 && r.round <= MAX_AGE) : []),
+    () => (summary ? summary.inflow.filter((r) => r.net > 0) : []),
     [summary]
   );
   const maxNet = useMemo(() => rows.reduce((m, r) => Math.max(m, r.net), 0), [rows]);
-  // 18회차까지만 보여주므로 피크도 그 안에서 고른다.
-  // 전체 피크(peakRound)는 18회차 밖일 수 있어 화면과 어긋난다.
+  // 수당이 0인 회차를 걸러낸 뒤 그 안에서 피크를 고른다.
   const peakRound = useMemo(() => {
     let best = 0;
     let bestNet = -1;
@@ -59,25 +56,23 @@ export default function TimelineClient({
 
   // 회차별 자세히 보기
   const [openRound, setOpenRound] = useState<number | null>(null);
-  const lastRound = summary ? Math.min(MAX_AGE, summary.inflow.length) : 0;
+  const lastRound = summary ? summary.inflow.length : 0;
 
   /**
-   * '총 예상 수당' 한 숫자만으로는 무엇을 더한 값인지 알기 어렵다. 셋으로 나눈다.
-   *  - 첫 아바타 하나가 18살까지 받는 수당
-   *  - 18회차까지 모든 아바타에게서 받은 수당
-   *  - 마지막 아바타까지 다 살고 난 전체 기간 총 수당 (기존 대표 숫자)
+   * 대표 숫자(18회차까지 모든 아바타 합)가 무엇으로 이뤄졌는지 나눈다.
+   *  - 1회차 아바타 하나가 18번 다 받는 몫
+   *  - 나머지 아바타들(2회차부터)의 몫
+   * 늦게 만든 아바타일수록 18회차 안에서 받는 횟수가 적다.
    */
   const breakdown = useMemo(() => {
     if (!plan || !summary) return null;
-    const cap = PLAN_META[plan.planType].cap;
     const firstGoal = plan.rounds[0] || 0;
-    const untilRound = Math.min(MAX_AGE, summary.inflow.length);
+    const oneAvatar = summary.perAvatarNet[0] ?? 0;
     return {
       firstGoal,
-      oneAvatar: avatarNetLifetime(firstGoal, cap),
-      until18: roundDetail(plan.rounds, cap, untilRound).cumulativeNet,
-      untilRound,
-      allRounds: summary.inflow.length,
+      oneAvatar,
+      others: summary.totalNet - oneAvatar,
+      otherCount: plan.rounds.slice(1).filter((g) => g > 0).length,
       total: summary.totalNet,
     };
   }, [plan, summary]);
@@ -186,27 +181,22 @@ export default function TimelineClient({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="text-[17px] font-bold text-on-surface leading-tight">
-                        {breakdown.untilRound}회차까지 받은 전부
+                        나머지 아바타 {breakdown.otherCount}개
                       </div>
                       <div className="text-[15px] font-semibold text-on-surface-variant leading-tight">
-                        아바타 {plan.rounds.filter((g) => g > 0).length}개에게서 그때까지
-                      </div>
-                    </div>
-                    <span className="text-[19px] font-extrabold text-secondary num-font shrink-0">
-                      {bigWon(breakdown.until18)}원
-                    </span>
-                  </div>
-
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="text-[17px] font-bold text-on-surface leading-tight">
-                        끝까지({breakdown.allRounds}회차) 받는 전부
-                      </div>
-                      <div className="text-[15px] font-semibold text-on-surface-variant leading-tight">
-                        마지막 아바타가 소멸할 때까지 — 위의 큰 숫자
+                        늦게 만들수록 18회차 안에서 받는 횟수가 적습니다
                       </div>
                     </div>
                     <span className="text-[19px] font-extrabold text-on-surface num-font shrink-0">
+                      {bigWon(breakdown.others)}원
+                    </span>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-2 pt-2.5 border-t border-surface-container">
+                    <div className="text-[17px] font-extrabold text-on-surface leading-tight">
+                      18회차까지 받는 전부
+                    </div>
+                    <span className="text-[19px] font-extrabold text-secondary num-font shrink-0">
                       {bigWon(breakdown.total)}원
                     </span>
                   </div>

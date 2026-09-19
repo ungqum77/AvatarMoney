@@ -8,6 +8,8 @@ import {
   cumulativeSales,
   roundSalesTotal,
   avatarNetLifetime,
+  avatarNetInPlan,
+  PLAN_HORIZON,
   PLAN_TEMPLATES,
   PLAN_META,
   MAX_AGE,
@@ -409,10 +411,11 @@ describe("아바타 0 (안 만드는 회차)", () => {
     expect(roundSalesTotal(g, 3)).toBe(660_000);
   });
 
-  it("0인 회차를 뺀 플랜과 아예 없는 플랜의 수당이 같다", () => {
+  it("0인 회차는 수당에 안 들어간다", () => {
+    // 1회차 아바타는 1~18회차(18번), 3회차 아바타는 3~18회차(16번) 받는다
     const withZero = planSummary([330_000, 0, 330_000], cap);
     const manual =
-      avatarNetLifetime(330_000, cap) + avatarNetLifetime(330_000, cap);
+      avatarNetInPlan(330_000, cap, 1) + avatarNetInPlan(330_000, cap, 3);
     expect(withZero.totalNet).toBe(manual);
   });
 
@@ -455,7 +458,8 @@ describe("1회차 본코드", () => {
     const s = planSummary([0, 330_000], cap);
     // 2회차 아바타만 남는다
     expect(roundDetail([0, 330_000], cap, 2).shares.map((x) => x.bornRound)).toEqual([2]);
-    expect(s.totalNet).toBe(avatarNetLifetime(330_000, cap));
+    // 2회차 아바타는 2~18회차(17번)만 받는다
+    expect(s.totalNet).toBe(avatarNetInPlan(330_000, cap, 2));
   });
 
   it("2회차부터는 0으로 비워도 1회차 아바타는 살아있다", () => {
@@ -503,5 +507,70 @@ describe("플랜 템플릿", () => {
       const [a, b] = tpl.label.split(" - ").map((s) => Number(s) * 10_000);
       expect([tpl.label, tpl.first, tpl.rest]).toEqual([tpl.label, a, b]);
     }
+  });
+});
+
+// ============================================================================
+// 18회차 기준 — 모든 합계가 1~18회차 안에서만 계산된다
+// ============================================================================
+describe("18회차 기준", () => {
+  const cap = CAP.won33;
+  const goals = Array.from({ length: 18 }, () => 330_000);
+
+  it("회차별 유입은 18회차까지만", () => {
+    const s = planSummary(goals, cap);
+    expect(s.inflow).toHaveLength(PLAN_HORIZON);
+    expect(s.inflow[s.inflow.length - 1].round).toBe(18);
+  });
+
+  it("회차 수가 적어도 18회차까지 본다 (아바타는 계속 살아있다)", () => {
+    const s = planSummary([330_000], cap);
+    expect(s.inflow).toHaveLength(18);
+    // 1회차 아바타 하나가 18번 받는다
+    expect(s.totalNet).toBe(avatarNetLifetime(330_000, cap));
+  });
+
+  it("총수당 = 18회차 누적수당", () => {
+    const s = planSummary(goals, cap);
+    expect(s.totalNet).toBe(s.inflow[17].cumulative);
+    expect(s.totalNet).toBe(roundDetail(goals, cap, 18).cumulativeNet);
+  });
+
+  it("총매출 = 18회차 누적매출", () => {
+    const s = planSummary(goals, cap);
+    expect(s.totalInvest).toBe(cumulativeSales(goals, 18));
+    expect(s.totalInvest).toBe(roundDetail(goals, cap, 18).cumulativeSales);
+  });
+
+  it("아바타별 몫도 18회차 안에서만 — 늦게 만들수록 적게 받는다", () => {
+    const s = planSummary(goals, cap);
+    // 1회차는 18번, 18회차는 1번
+    expect(s.perAvatarNet[0]).toBe(avatarNetInPlan(330_000, cap, 1));
+    expect(s.perAvatarNet[17]).toBe(avatarNetInPlan(330_000, cap, 18));
+    expect(s.perAvatarNet[17]).toBe(netPoint(avatarPoint(330_000, 1, cap)));
+    // 뒤로 갈수록 줄어든다
+    for (let i = 1; i < s.perAvatarNet.length; i++) {
+      expect(s.perAvatarNet[i]).toBeLessThan(s.perAvatarNet[i - 1]);
+    }
+    // 아바타별 몫을 더하면 총수당
+    expect(s.perAvatarNet.reduce((a, b) => a + b, 0)).toBe(s.totalNet);
+  });
+
+  it("1회차 아바타만 18번 꽉 채워 받는다", () => {
+    const s = planSummary(goals, cap);
+    expect(s.perAvatarNet[0]).toBe(avatarNetLifetime(330_000, cap));
+    expect(s.perAvatarNet[1]).toBeLessThan(avatarNetLifetime(330_000, cap));
+  });
+
+  it("최고 정산 회차도 18회차 안에서 고른다", () => {
+    const s = planSummary(goals, cap);
+    expect(s.peakRound).toBeLessThanOrEqual(18);
+  });
+
+  it("18회차 안에 못 따라잡으면 손익분기는 없음", () => {
+    // 1회차만 크게 잡고 나머지를 계속 키우면 매출이 수당을 계속 앞선다
+    const heavy = Array.from({ length: 18 }, (_, i) => 330_000 + i * 3_300_000);
+    const s = planSummary(heavy, cap);
+    if (s.breakEvenRound !== null) expect(s.breakEvenRound).toBeLessThanOrEqual(18);
   });
 });

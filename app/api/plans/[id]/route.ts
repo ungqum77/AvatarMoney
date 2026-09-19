@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { getPlan, updatePlan, deletePlan } from "@/lib/plans";
-import { PLAN_META, type PlanType } from "@/lib/points";
+import { PLAN_META, PLAN_HORIZON, type PlanType } from "@/lib/points";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 function sanitizeRounds(rounds: unknown, planType: PlanType, allowZero: boolean): number[] {
   const meta = PLAN_META[planType];
   if (!Array.isArray(rounds)) return [meta.min];
-  const out = rounds.slice(0, 60).map((n, i) => {
+  // 18회차가 기준이므로 그 이상은 받지 않는다
+  const out = rounds.slice(0, PLAN_HORIZON).map((n, i) => {
     let v = Math.round(Number(n) || 0);
     // 1회차(본코드)는 반드시 만들어야 하므로 0으로 못 잡는다
     if (v <= 0) return allowZero && i > 0 ? 0 : meta.min;
