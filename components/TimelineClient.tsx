@@ -77,8 +77,9 @@ export default function TimelineClient({
     };
   }, [plan, summary]);
 
-  // 엑셀처럼 한눈에 훑는 표. 폰에서는 좁아서 기본은 '간단히' 로 둔다.
-  const [tableView, setTableView] = useState(false);
+  // 엑셀처럼 한눈에 훑는 표를 기본으로 보여준다.
+  // 글씨가 작아 보기 힘들면 '간단히' 로 바꿀 수 있다.
+  const [tableView, setTableView] = useState(true);
   const tableRows = useMemo(() => {
     if (!plan || !summary) return [];
     const cap = PLAN_META[plan.planType].cap;
@@ -217,54 +218,6 @@ export default function TimelineClient({
               </div>
             </div>
 
-            {/* 바 차트 */}
-            <section className="p-space-lg rounded-2xl bg-surface-container-lowest shadow-md">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-headline-sm font-headline-sm text-on-surface font-bold">회차별 수당 유입</h2>
-                <span className="text-label-sm text-on-surface-variant">유입 회차 {rows.length}개</span>
-              </div>
-              <div className="overflow-x-auto pb-2">
-                {/* 막대가 좁으면 '14억 2,400만' 같은 라벨이 옆 막대와 겹친다 */}
-                <div className="flex items-end gap-2 h-48 min-w-full" style={{ width: `max(100%, ${rows.length * 72}px)` }}>
-                  {rows.map((r) => {
-                    const h = maxNet > 0 ? Math.max(6, (r.net / maxNet) * 100) : 6;
-                    const peak = r.round === peakRound;
-                    return (
-                      <button
-                        key={r.round}
-                        onClick={() => setOpenRound(r.round)}
-                        aria-label={`${r.round}회차 자세히 보기`}
-                        className="flex-1 min-w-[64px] flex flex-col items-center justify-end h-full active:opacity-70"
-                      >
-                        <span className={`text-label-sm font-bold mb-1 ${peak ? "text-secondary" : "text-on-surface-variant"}`}>
-                          {shortKRW(r.net)}
-                        </span>
-                        <div
-                          className={`w-full rounded-t-lg ${peak ? "bg-secondary" : "bg-primary/80"}`}
-                          style={{ height: `${h}%` }}
-                        />
-                        <span className="text-label-sm text-on-surface-variant mt-1">{r.round}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-              <p className="text-label-sm text-on-surface-variant mt-2">
-                아바타가 회차를 거듭하며 성장(달성 보너스)해 후반 회차 수당이 크게 늘어납니다.
-              </p>
-
-              <button
-                onClick={() => setOpenRound(1)}
-                className="mt-4 w-full min-h-[60px] rounded-2xl bg-primary text-on-primary text-[20px] font-extrabold flex items-center justify-center gap-2 shadow-md active:scale-[0.98]"
-              >
-                <Icon name="tune" size={24} />
-                회차별 자세히 보기
-              </button>
-              <p className="text-[16px] text-on-surface-variant font-semibold mt-2 text-center">
-                회차마다 어떤 아바타가 얼마를 주는지, 계산식까지 봅니다
-              </p>
-            </section>
-
             {/* 상세 — 간단히 보기 / 표로 보기 */}
             <section className="rounded-2xl bg-surface-container-lowest shadow-md overflow-hidden">
               <div className="px-space-md py-2.5 flex items-center justify-between gap-2 bg-surface-container-low">
@@ -374,6 +327,54 @@ export default function TimelineClient({
                   );
                 })
               )}
+            </section>
+
+            {/* 바 차트 */}
+            <section className="p-space-lg rounded-2xl bg-surface-container-lowest shadow-md">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-headline-sm font-headline-sm text-on-surface font-bold">회차별 수당 유입</h2>
+                <span className="text-label-sm text-on-surface-variant">유입 회차 {rows.length}개</span>
+              </div>
+              <div className="overflow-x-auto pb-2">
+                {/* 막대가 좁으면 '14억 2,400만' 같은 라벨이 옆 막대와 겹친다 */}
+                <div className="flex items-end gap-2 h-48 min-w-full" style={{ width: `max(100%, ${rows.length * 72}px)` }}>
+                  {rows.map((r) => {
+                    const h = maxNet > 0 ? Math.max(6, (r.net / maxNet) * 100) : 6;
+                    const peak = r.round === peakRound;
+                    return (
+                      <button
+                        key={r.round}
+                        onClick={() => setOpenRound(r.round)}
+                        aria-label={`${r.round}회차 자세히 보기`}
+                        className="flex-1 min-w-[64px] flex flex-col items-center justify-end h-full active:opacity-70"
+                      >
+                        <span className={`text-label-sm font-bold mb-1 ${peak ? "text-secondary" : "text-on-surface-variant"}`}>
+                          {shortKRW(r.net)}
+                        </span>
+                        <div
+                          className={`w-full rounded-t-lg ${peak ? "bg-secondary" : "bg-primary/80"}`}
+                          style={{ height: `${h}%` }}
+                        />
+                        <span className="text-label-sm text-on-surface-variant mt-1">{r.round}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <p className="text-label-sm text-on-surface-variant mt-2">
+                아바타가 회차를 거듭하며 성장(달성 보너스)해 후반 회차 수당이 크게 늘어납니다.
+              </p>
+
+              <button
+                onClick={() => setOpenRound(1)}
+                className="mt-4 w-full min-h-[60px] rounded-2xl bg-primary text-on-primary text-[20px] font-extrabold flex items-center justify-center gap-2 shadow-md active:scale-[0.98]"
+              >
+                <Icon name="tune" size={24} />
+                회차별 자세히 보기
+              </button>
+              <p className="text-[16px] text-on-surface-variant font-semibold mt-2 text-center">
+                회차마다 어떤 아바타가 얼마를 주는지, 계산식까지 봅니다
+              </p>
             </section>
 
             <Link
