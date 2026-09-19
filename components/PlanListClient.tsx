@@ -185,7 +185,7 @@ export default function PlanListClient({
                     href={`/present?plan=${c.id}`}
                     className="min-h-[52px] px-3.5 rounded-xl bg-secondary text-on-secondary text-label-md font-bold flex items-center justify-center gap-1 active:scale-95"
                   >
-                    <Icon name="present_to_all" size={20} />보여주기
+                    <Icon name="present_to_all" size={20} />핵심요약
                   </Link>
                   <button
                     onClick={() => duplicate(c)}

@@ -2,8 +2,8 @@
 
 import { useEffect, useRef } from "react";
 
-// 애드센스 배너. 플랜 목록·타임라인 화면 하단에만 사용.
-// 로그인/회원가입/시뮬레이터/프레젠테이션에는 넣지 않는다.
+// 애드센스 배너. 플랜 목록·회차별 정보 화면 하단에만 사용.
+// 로그인/회원가입/플랜 설정/핵심요약에는 넣지 않는다.
 export default function AdBanner() {
   const client = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
   const slot = process.env.NEXT_PUBLIC_ADSENSE_SLOT;

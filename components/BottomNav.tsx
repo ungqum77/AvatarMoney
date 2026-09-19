@@ -6,8 +6,8 @@ import Icon, { type IconName } from "@/components/Icon";
 
 const TABS: { href: string; icon: IconName; label: string }[] = [
   { href: "/plans", icon: "home", label: "홈" },
-  { href: "/simulator", icon: "calculate", label: "시뮬레이터" },
-  { href: "/timeline", icon: "timeline", label: "타임라인" },
+  { href: "/simulator", icon: "calculate", label: "플랜설정" },
+  { href: "/timeline", icon: "timeline", label: "회차정보" },
   { href: "/me", icon: "account_circle", label: "내정보" },
 ];
 

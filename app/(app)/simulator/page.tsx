@@ -4,7 +4,7 @@ import { getPlansForUser } from "@/lib/plans";
 
 export const dynamic = "force-dynamic";
 
-// '시뮬레이터' 탭: 가장 최근 플랜 편집으로 이동. 없으면 목록으로.
+// '플랜설정' 탭: 가장 최근에 고친 플랜으로 이동. 없으면 목록으로.
 export default async function SimulatorTab() {
   const user = await getSessionUser();
   if (!user) redirect("/login");

@@ -3,7 +3,14 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { won, shortKRW, multiple, bigWon } from "@/lib/format";
-import { planSummary, roundDetail, PLAN_META, MAX_AGE, type PlanType } from "@/lib/points";
+import {
+  planSummary,
+  roundDetail,
+  avatarNetLifetime,
+  PLAN_META,
+  MAX_AGE,
+  type PlanType,
+} from "@/lib/points";
 import AdBanner from "@/components/AdBanner";
 import Icon from "@/components/Icon";
 import RoundDetailSheet from "@/components/RoundDetailSheet";
@@ -54,6 +61,27 @@ export default function TimelineClient({
   const [openRound, setOpenRound] = useState<number | null>(null);
   const lastRound = summary ? Math.min(MAX_AGE, summary.inflow.length) : 0;
 
+  /**
+   * '총 예상 수당' 한 숫자만으로는 무엇을 더한 값인지 알기 어렵다. 셋으로 나눈다.
+   *  - 첫 아바타 하나가 18살까지 받는 수당
+   *  - 18회차까지 모든 아바타에게서 받은 수당
+   *  - 마지막 아바타까지 다 살고 난 전체 기간 총 수당 (기존 대표 숫자)
+   */
+  const breakdown = useMemo(() => {
+    if (!plan || !summary) return null;
+    const cap = PLAN_META[plan.planType].cap;
+    const firstGoal = plan.rounds[0] || 0;
+    const untilRound = Math.min(MAX_AGE, summary.inflow.length);
+    return {
+      firstGoal,
+      oneAvatar: avatarNetLifetime(firstGoal, cap),
+      until18: roundDetail(plan.rounds, cap, untilRound).cumulativeNet,
+      untilRound,
+      allRounds: summary.inflow.length,
+      total: summary.totalNet,
+    };
+  }, [plan, summary]);
+
   // 엑셀처럼 한눈에 훑는 표. 폰에서는 좁아서 기본은 '간단히' 로 둔다.
   const [tableView, setTableView] = useState(false);
   const tableRows = useMemo(() => {
@@ -80,7 +108,7 @@ export default function TimelineClient({
           <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
             <Icon name="timeline" size={20} className="text-on-primary" />
           </div>
-          <h1 className="text-headline-sm font-headline-sm text-on-surface font-bold">수당 타임라인</h1>
+          <h1 className="text-headline-sm font-headline-sm text-on-surface font-bold">회차별 정보</h1>
         </div>
       </header>
 
@@ -137,6 +165,53 @@ export default function TimelineClient({
               <p className="text-body-md font-body-md text-secondary mt-2 font-semibold">
                 원금 대비 {bigWon(summary.totalNet - summary.totalInvest)}원 순수익 예상
               </p>
+
+              {/* 무엇을 더한 값인지 나눠서 보여준다 */}
+              {breakdown && (
+                <div className="mt-4 pt-3 border-t-2 border-surface-container flex flex-col gap-2.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-[17px] font-bold text-on-surface leading-tight">
+                        아바타 1개가 18회 동안
+                      </div>
+                      <div className="text-[15px] font-semibold text-on-surface-variant leading-tight">
+                        1회차 아바타({shortKRW(breakdown.firstGoal)}원) 하나가 받는 전부
+                      </div>
+                    </div>
+                    <span className="text-[19px] font-extrabold text-on-surface num-font shrink-0">
+                      {bigWon(breakdown.oneAvatar)}원
+                    </span>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-[17px] font-bold text-on-surface leading-tight">
+                        {breakdown.untilRound}회차까지 받은 전부
+                      </div>
+                      <div className="text-[15px] font-semibold text-on-surface-variant leading-tight">
+                        아바타 {plan.rounds.filter((g) => g > 0).length}개에게서 그때까지
+                      </div>
+                    </div>
+                    <span className="text-[19px] font-extrabold text-secondary num-font shrink-0">
+                      {bigWon(breakdown.until18)}원
+                    </span>
+                  </div>
+
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="text-[17px] font-bold text-on-surface leading-tight">
+                        끝까지({breakdown.allRounds}회차) 받는 전부
+                      </div>
+                      <div className="text-[15px] font-semibold text-on-surface-variant leading-tight">
+                        마지막 아바타가 소멸할 때까지 — 위의 큰 숫자
+                      </div>
+                    </div>
+                    <span className="text-[19px] font-extrabold text-on-surface num-font shrink-0">
+                      {bigWon(breakdown.total)}원
+                    </span>
+                  </div>
+                </div>
+              )}
             </section>
 
             <div className="grid grid-cols-2 gap-space-md">

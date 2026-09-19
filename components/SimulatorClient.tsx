@@ -27,12 +27,15 @@ export default function SimulatorClient({
   initialType,
   initialRounds,
   initialAllowZero,
+  otherPlans,
 }: {
   id: number;
   initialName: string;
   initialType: PlanType;
   initialRounds: number[];
   initialAllowZero: boolean;
+  /** 같은 회원의 다른 플랜들. 헤더에서 갈아타기용 */
+  otherPlans: { id: number; name: string }[];
 }) {
   const router = useRouter();
   const [name, setName] = useState(initialName);
@@ -201,19 +204,51 @@ export default function SimulatorClient({
             <Link href="/plans" className="w-11 h-11 flex items-center justify-center rounded-full text-on-surface active:bg-surface-container">
               <Icon name="arrow_back" size={26} />
             </Link>
-            <h1 className="text-headline-sm font-headline-sm text-on-surface font-bold">시뮬레이터</h1>
+            {/* 어떤 플랜을 고치고 있는지 헤더에서 바로 보이게 한다.
+                전에는 '시뮬레이터' 만 있어서 어느 플랜인지 알 수 없었다. */}
+            <div className="min-w-0">
+              <div className="text-[14px] font-semibold text-on-surface-variant leading-none">
+                플랜 설정
+              </div>
+              <h1 className="text-[19px] font-bold text-on-surface leading-tight truncate">
+                {name || "새 플랜"}
+              </h1>
+            </div>
           </div>
           <Link
             href={`/present?plan=${id}`}
             className="min-h-[44px] px-3 rounded-xl bg-secondary text-on-secondary text-label-md font-bold flex items-center gap-1"
           >
-            <Icon name="present_to_all" size={20} />보여주기
+            <Icon name="present_to_all" size={20} />핵심요약
           </Link>
         </div>
       </header>
 
       <main className="px-margin-mobile flex flex-col pt-space-md">
         {/* 플랜 이름 + 유형 */}
+        {/* 다른 플랜으로 갈아타기. 플랜이 하나면 굳이 안 보여준다. */}
+        {otherPlans.length > 0 && (
+          <div className="mb-space-md">
+            <p className="text-[16px] font-semibold text-on-surface-variant mb-1.5">
+              지금 고치는 플랜
+            </p>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <span className="min-h-[48px] px-4 rounded-full bg-primary text-on-primary text-[17px] font-bold flex items-center whitespace-nowrap shrink-0">
+                {name || "새 플랜"}
+              </span>
+              {otherPlans.map((p) => (
+                <Link
+                  key={p.id}
+                  href={`/plans/${p.id}`}
+                  className="min-h-[48px] px-4 rounded-full bg-surface-container text-on-surface text-[17px] font-semibold flex items-center whitespace-nowrap shrink-0"
+                >
+                  {p.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="bg-surface-container-lowest rounded-xl p-4 shadow-sm mb-space-md flex flex-col gap-3">
           <div>
             <span className="text-label-sm text-on-surface-variant block mb-1">플랜 이름</span>
@@ -558,7 +593,7 @@ export default function SimulatorClient({
             href={`/timeline?plan=${id}`}
             className="flex-1 min-h-[56px] rounded-xl bg-surface-container text-on-surface text-[18px] font-bold flex items-center justify-center gap-1.5"
           >
-            <Icon name="timeline" size={22} />타임라인
+            <Icon name="timeline" size={22} />회차별 정보
           </Link>
         </div>
 

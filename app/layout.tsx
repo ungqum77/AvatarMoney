@@ -7,7 +7,7 @@ const ADSENSE_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT;
 
 export const metadata: Metadata = {
   title: "Avatar Money — 내 수당 플래너",
-  description: "회차별 목표금액을 넣으면 예상 수당과 타임라인을 보여주는 수당 플래너",
+  description: "회차별 목표매출을 넣으면 예상 수당을 회차별로 보여주는 수당 플래너",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

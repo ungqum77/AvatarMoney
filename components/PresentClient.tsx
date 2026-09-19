@@ -27,7 +27,7 @@ export default function PresentClient({
   const summary = useMemo(() => planSummary(plan.rounds, PLAN_META[plan.planType].cap), [plan]);
 
   const firstRound = summary.inflow.find((r) => r.net > 0)?.round ?? 1;
-  // 누적수당이 누적매출을 따라잡는 회차. 시뮬레이터의 '본전 되는 때' 와 같은 값이어야 한다.
+  // 누적수당이 누적매출을 따라잡는 회차. 플랜 설정의 '본전 되는 때' 와 같은 값이어야 한다.
   const breakeven = summary.breakEvenRound;
 
   return (
