@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { won, shortKRW, multiple, bigWon } from "@/lib/format";
-import { planSummary, PLAN_META, MAX_AGE, type PlanType } from "@/lib/points";
+import { planSummary, roundDetail, PLAN_META, MAX_AGE, type PlanType } from "@/lib/points";
 import AdBanner from "@/components/AdBanner";
 import Icon from "@/components/Icon";
 import RoundDetailSheet from "@/components/RoundDetailSheet";
@@ -53,6 +53,25 @@ export default function TimelineClient({
   // 회차별 자세히 보기
   const [openRound, setOpenRound] = useState<number | null>(null);
   const lastRound = summary ? Math.min(MAX_AGE, summary.inflow.length) : 0;
+
+  // 엑셀처럼 한눈에 훑는 표. 폰에서는 좁아서 기본은 '간단히' 로 둔다.
+  const [tableView, setTableView] = useState(false);
+  const tableRows = useMemo(() => {
+    if (!plan || !summary) return [];
+    const cap = PLAN_META[plan.planType].cap;
+    return rows.map((r) => {
+      const d = roundDetail(plan.rounds, cap, r.round);
+      return {
+        round: r.round,
+        newGoal: r.round <= plan.rounds.length ? plan.rounds[r.round - 1] || 0 : 0,
+        sales: d.sales,
+        net: d.net,
+        cumSales: d.cumulativeSales,
+        cumNet: d.cumulativeNet,
+        diff: d.netMinusSales,
+      };
+    });
+  }, [plan, summary, rows]);
 
   return (
     <div className="flex flex-col w-full">
@@ -181,32 +200,115 @@ export default function TimelineClient({
               </p>
             </section>
 
-            {/* 상세 표 */}
+            {/* 상세 — 간단히 보기 / 표로 보기 */}
             <section className="rounded-2xl bg-surface-container-lowest shadow-md overflow-hidden">
-              <div className="px-space-md py-3 flex items-center justify-between bg-surface-container-low">
-                <span className="text-label-md font-bold text-on-surface">회차</span>
-                <span className="text-label-md font-bold text-on-surface">그 회차 수당</span>
-                <span className="text-label-md font-bold text-on-surface">누적</span>
+              <div className="px-space-md py-2.5 flex items-center justify-between gap-2 bg-surface-container-low">
+                <span className="text-[18px] font-bold text-on-surface">회차별 내역</span>
+                <div className="flex items-center gap-1 shrink-0">
+                  {([false, true] as const).map((v) => (
+                    <button
+                      key={String(v)}
+                      onClick={() => setTableView(v)}
+                      className={`min-h-[44px] px-3 rounded-lg text-[16px] font-bold ${
+                        tableView === v
+                          ? "bg-primary text-on-primary"
+                          : "bg-surface-container-lowest text-on-surface-variant"
+                      }`}
+                    >
+                      {v ? "표로 보기" : "간단히"}
+                    </button>
+                  ))}
+                </div>
               </div>
-              {rows.map((r) => {
-                const peak = r.round === peakRound;
-                return (
-                  <button
-                    key={r.round}
-                    onClick={() => setOpenRound(r.round)}
-                    className={`w-full min-h-[56px] px-space-md py-3 flex items-center justify-between gap-2 border-t border-surface-container text-left active:bg-surface-container ${
-                      peak ? "bg-secondary/5" : ""
-                    }`}
-                  >
-                    <span className="text-body-lg font-body-lg text-on-surface font-bold w-14 shrink-0">{r.round}회</span>
-                    <span className={`flex-1 text-body-lg-bold font-body-lg-bold ${peak ? "text-secondary" : "text-on-surface"}`}>
-                      {won(r.net)}원
-                    </span>
-                    <span className="text-body-md font-body-md text-on-surface-variant">{shortKRW(r.cumulative)}</span>
-                    <Icon name="arrow_forward" size={20} className="text-outline" />
-                  </button>
-                );
-              })}
+
+              {tableView ? (
+                <>
+                  {/* 가로로 넓은 표. 회차 칸은 스크롤해도 붙어 있어야 자리를 안 잃는다. */}
+                  <div className="overflow-x-auto">
+                    <table className="border-collapse text-[16px] whitespace-nowrap">
+                      <thead>
+                        <tr className="bg-surface-container">
+                          {["회차", "신규 아바타", "총매출", "이 회차 수당", "누적매출", "누적수당", "누적수당−누적매출"].map(
+                            (h, i) => (
+                              <th
+                                key={h}
+                                className={`px-3 py-2.5 font-bold text-on-surface text-right ${
+                                  i === 0
+                                    ? "sticky left-0 z-10 bg-surface-container text-left"
+                                    : ""
+                                }`}
+                              >
+                                {h}
+                              </th>
+                            )
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tableRows.map((t) => (
+                          <tr
+                            key={t.round}
+                            onClick={() => setOpenRound(t.round)}
+                            className={`border-t border-surface-container cursor-pointer active:bg-surface-container ${
+                              t.round === peakRound ? "bg-secondary/5" : ""
+                            }`}
+                          >
+                            <td
+                              className={`sticky left-0 z-10 px-3 py-2.5 font-bold text-on-surface text-left ${
+                                t.round === peakRound ? "bg-[#eef7f2]" : "bg-surface-container-lowest"
+                              }`}
+                            >
+                              {t.round}회
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-on-surface-variant">
+                              {t.newGoal > 0 ? `${shortKRW(t.newGoal)}` : "—"}
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-on-surface">{shortKRW(t.sales)}</td>
+                            <td className="px-3 py-2.5 text-right font-bold text-secondary">
+                              {shortKRW(t.net)}
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-on-surface-variant">
+                              {shortKRW(t.cumSales)}
+                            </td>
+                            <td className="px-3 py-2.5 text-right text-on-surface">{shortKRW(t.cumNet)}</td>
+                            <td
+                              className={`px-3 py-2.5 text-right font-bold ${
+                                t.diff < 0 ? "text-tertiary" : "text-secondary"
+                              }`}
+                            >
+                              {t.diff < 0 ? "−" : "+"}
+                              {shortKRW(Math.abs(t.diff))}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="px-space-md py-2.5 text-[15px] text-on-surface-variant font-semibold border-t border-surface-container">
+                    옆으로 밀어서 보세요 · 금액은 억·만 단위로 줄였습니다 · 줄을 누르면 정확한 금액과 계산식이 나옵니다
+                  </p>
+                </>
+              ) : (
+                rows.map((r) => {
+                  const peak = r.round === peakRound;
+                  return (
+                    <button
+                      key={r.round}
+                      onClick={() => setOpenRound(r.round)}
+                      className={`w-full min-h-[56px] px-space-md py-3 flex items-center justify-between gap-2 border-t border-surface-container text-left active:bg-surface-container ${
+                        peak ? "bg-secondary/5" : ""
+                      }`}
+                    >
+                      <span className="text-body-lg font-body-lg text-on-surface font-bold w-14 shrink-0">{r.round}회</span>
+                      <span className={`flex-1 text-body-lg-bold font-body-lg-bold ${peak ? "text-secondary" : "text-on-surface"}`}>
+                        {won(r.net)}원
+                      </span>
+                      <span className="text-body-md font-body-md text-on-surface-variant">{shortKRW(r.cumulative)}</span>
+                      <Icon name="arrow_forward" size={20} className="text-outline" />
+                    </button>
+                  );
+                })
+              )}
             </section>
 
             <Link
