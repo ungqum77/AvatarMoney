@@ -2,6 +2,7 @@ import { getSessionUser } from "@/lib/auth/session";
 import { formatPhone } from "@/lib/format";
 import LogoutButton from "@/components/LogoutButton";
 import ChangePassword from "@/components/ChangePassword";
+import InstallPrompt from "@/components/InstallPrompt";
 import Icon from "@/components/Icon";
 
 export const dynamic = "force-dynamic";
@@ -39,6 +40,9 @@ export default async function MePage() {
             내 플랜은 안전하게 저장되어 어느 기기에서 로그인해도 그대로 볼 수 있습니다.
           </p>
         </section>
+
+        {/* 홈에서 배너를 닫았어도 여기서는 언제든 설치 방법을 다시 볼 수 있다 */}
+        <InstallPrompt persistent />
 
         <ChangePassword />
 
