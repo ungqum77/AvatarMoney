@@ -21,6 +21,18 @@ function manLabel(v: number): string {
   return `${Math.round(v / 10_000).toLocaleString("ko-KR")}만`;
 }
 
+/**
+ * 플랜은 무조건 18회차다. '몇 회차까지' 를 고르게 하면 헷갈리기만 하고,
+ * 어차피 아바타는 18회차까지 사니까 회차 수는 붙박이로 둔다.
+ * 저장된 회차가 모자라면 마지막 값을 이어서 18개까지 채운다.
+ */
+function toFullRounds(rs: number[], type: PlanType): number[] {
+  const out = rs.slice(0, MAX_AGE);
+  if (!out.length) out.push(PLAN_META[type].min);
+  while (out.length < MAX_AGE) out.push(out[out.length - 1]);
+  return out;
+}
+
 export default function SimulatorClient({
   id,
   initialName,
@@ -42,9 +54,9 @@ export default function SimulatorClient({
   const [type, setType] = useState<PlanType>(initialType);
   // 아바타를 0으로(그 회차엔 안 만들기) 잡을 수 있는지
   const [allowZero, setAllowZero] = useState(initialAllowZero);
-  const [rounds, setRounds] = useState<number[]>(
-    initialRounds.length ? initialRounds : [PLAN_META[initialType].min]
-  );
+  const [rounds, setRounds] = useState<number[]>(() => toFullRounds(initialRounds, initialType));
+  // 2회차부터 직접 넣는 금액(만원). 11 단위로만 받는다. 11 → 11만원, 110 → 110만원.
+  const [customMan, setCustomMan] = useState("");
   const [toast, setToast] = useState("");
   const [saving, setSaving] = useState(false);
   const [openRound, setOpenRound] = useState<number | null>(null);
@@ -55,12 +67,14 @@ export default function SimulatorClient({
     name: initialName,
     type: initialType,
     allowZero: initialAllowZero,
-    rounds: (initialRounds.length ? initialRounds : [PLAN_META[initialType].min]).join(","),
+    rounds: toFullRounds(initialRounds, initialType).join(","),
   }));
 
   const meta = PLAN_META[type];
   const presets =
     type === "won33" ? [330000, 440000, 550000, 660000] : [110000, 220000, 330000, 440000];
+  // 2회차부터 한 번에 채울 때 자주 쓰는 금액. 1회차 프리셋과는 쓰임이 다르다.
+  const fillPresets = [1_100_000, 1_650_000, 3_300_000, 5_500_000, 11_000_000];
 
   const summary = useMemo(() => planSummary(rounds, meta.cap), [rounds, meta.cap]);
 
@@ -102,15 +116,6 @@ export default function SimulatorClient({
     setAllowZero(on);
     if (!on) setRounds((rs) => rs.map((v) => (v <= 0 ? meta.min : v)));
   }
-  function addRound() {
-    // 18회차가 기준이므로 그 이상은 만들지 않는다
-    setRounds((rs) =>
-      rs.length >= MAX_AGE ? rs : [...rs, rs.length ? rs[rs.length - 1] : meta.min]
-    );
-  }
-  function removeRound(i: number) {
-    setRounds((rs) => (rs.length <= 1 ? rs : rs.filter((_, idx) => idx !== i)));
-  }
   function changeType(t: PlanType) {
     setType(t);
     // 0으로 비워둔 회차는 유형을 바꿔도 그대로 둔다. 1회차는 반드시 만든다.
@@ -130,15 +135,6 @@ export default function SimulatorClient({
     setTimeout(() => setToast(""), 4000);
   }
 
-  /** 회차 수를 n개로. 늘릴 땐 마지막 값을 이어서 채운다. */
-  function setRoundCount(n: number) {
-    if (n === rounds.length) return;
-    const next = rounds.slice(0, n);
-    const last = rounds[rounds.length - 1] ?? meta.min;
-    while (next.length < n) next.push(last);
-    bulk(next, `${n}회차로 맞췄습니다`);
-  }
-
   /** 2회차부터 지정한 금액으로. 1회차(본코드)는 건드리지 않는다. */
   function fillRest(v: number) {
     const first = rounds[0] ?? meta.min;
@@ -151,23 +147,26 @@ export default function SimulatorClient({
     );
   }
 
+  // 직접 입력은 만원 단위로 받되 11만원 단위(11·22·…·110·1100)만 허용한다.
+  // 33만원형은 최소가 33만원이라 11만·22만은 받지 않는다.
+  const customNum = Number(customMan);
+  const customWon = customNum * 10_000;
+  const customOk =
+    /^\d+$/.test(customMan.trim()) && customNum > 0 && customNum % 11 === 0 && customWon >= meta.min;
+
+  function fillCustom() {
+    if (!customOk) return;
+    fillRest(customWon);
+    setCustomMan("");
+  }
+
   /** 템플릿: 1회차와 2회차부터의 금액을 한 번에 */
   function applyTemplate(tpl: PlanTemplate) {
     const first = clamp(0, tpl.first);
     const rest = clamp(1, tpl.rest);
-    const n = Math.max(rounds.length, 2);
     bulk(
-      Array.from({ length: n }, (_, i) => (i === 0 ? first : rest)),
+      Array.from({ length: MAX_AGE }, (_, i) => (i === 0 ? first : rest)),
       `${tpl.label} 으로 채웠습니다`
-    );
-  }
-
-  /** 회차마다 한 단위씩 올려서 */
-  function fillStepUp() {
-    const first = rounds[0] ?? meta.min;
-    bulk(
-      rounds.map((_, i) => clamp(i, first + i * meta.step)),
-      `회차마다 ${meta.step / 10000}만원씩 올렸습니다`
     );
   }
 
@@ -358,33 +357,7 @@ export default function SimulatorClient({
           <div>
             <h2 className="text-[21px] font-extrabold text-on-surface">빠른 채우기</h2>
             <p className="text-[17px] text-on-surface-variant font-semibold mt-0.5">
-              1회차(본코드)만 정하면 나머지는 한 번에 채웁니다
-            </p>
-          </div>
-
-          {/* 몇 회차까지 */}
-          <div>
-            <p className="text-[19px] font-bold text-on-surface mb-2">몇 회차까지 할까요?</p>
-            <div className="flex items-center gap-2">
-              {[6, 12, MAX_AGE].map((n) => {
-                const on = rounds.length === n;
-                return (
-                  <button
-                    key={n}
-                    onClick={() => setRoundCount(n)}
-                    className={`flex-1 min-h-[56px] rounded-xl text-[19px] font-bold border-2 ${
-                      on
-                        ? "border-primary bg-primary-fixed text-on-primary-fixed"
-                        : "border-surface-container bg-surface-container-lowest text-on-surface"
-                    }`}
-                  >
-                    {n}회차
-                  </button>
-                );
-              })}
-            </div>
-            <p className="text-[16px] text-on-surface-variant font-semibold mt-1.5">
-              지금 {rounds.length}회차 · 아바타는 18회차까지 삽니다
+              1회차(본코드)만 정하면 나머지는 한 번에 채웁니다 · 모든 플랜은 18회차 기준입니다
             </p>
           </div>
 
@@ -394,7 +367,7 @@ export default function SimulatorClient({
               2회차부터 얼마로 채울까요?
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              {presets.map((p) => (
+              {fillPresets.map((p) => (
                 <button
                   key={p}
                   onClick={() => fillRest(p)}
@@ -418,13 +391,49 @@ export default function SimulatorClient({
                   안 만들기
                 </button>
               )}
-              <button
-                onClick={fillStepUp}
-                className="min-h-[56px] px-4 rounded-xl bg-surface-container text-on-surface text-[18px] font-bold flex items-center gap-1.5 active:scale-95"
-              >
-                <Icon name="trending_up" size={20} />
-                {meta.step / 10000}만씩 올리기
-              </button>
+            </div>
+
+            {/* 직접 입력 — 프리셋에 없는 금액을 2~18회차에 한 번에 */}
+            <div className="mt-3 rounded-xl bg-surface-container-low px-3 py-3">
+              <p className="text-[17px] font-bold text-on-surface mb-2">
+                직접 넣기 · 11만원 단위
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0 flex items-center gap-1.5 bg-surface-container-lowest rounded-xl px-3 min-h-[56px]">
+                  <input
+                    value={customMan}
+                    onChange={(e) => setCustomMan(e.target.value.replace(/[^\d]/g, ""))}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") fillCustom();
+                    }}
+                    inputMode="numeric"
+                    placeholder="예: 110"
+                    aria-label="2회차부터 채울 금액(만원)"
+                    className="flex-1 min-w-0 bg-transparent text-[22px] font-extrabold text-on-surface num-font text-right focus:outline-none"
+                  />
+                  <span className="text-[19px] font-bold text-on-surface-variant shrink-0">만원</span>
+                </div>
+                <button
+                  onClick={fillCustom}
+                  disabled={!customOk}
+                  className={`min-h-[56px] px-4 rounded-xl text-[18px] font-bold shrink-0 active:scale-95 ${
+                    customOk
+                      ? "bg-primary text-on-primary"
+                      : "bg-surface-container text-on-surface-variant/50"
+                  }`}
+                >
+                  채우기
+                </button>
+              </div>
+              <p className="text-[16px] font-semibold text-on-surface-variant mt-1.5 leading-snug">
+                {customMan === ""
+                  ? `11 · 22 · 110 · 330 처럼 11의 배수로 적으세요 (최소 ${meta.min / 10000}만원)`
+                  : customOk
+                    ? `2~18회차를 ${won(customWon)}원으로 채웁니다`
+                    : customNum % 11 !== 0
+                      ? `${customMan}만원은 11만원 단위가 아닙니다`
+                      : `${meta.label}은 최소 ${meta.min / 10000}만원부터입니다`}
+              </p>
             </div>
           </div>
 
@@ -460,14 +469,14 @@ export default function SimulatorClient({
           className="attention-blink w-full min-h-[60px] rounded-2xl bg-secondary text-on-secondary text-[20px] font-extrabold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] mb-space-lg"
         >
           <Icon name="timeline" size={24} />
-          회차별 수당 자세히 보기
+          회차별 수당 세부정보
         </button>
 
         {/* 회차별 목표매출 */}
         <div className="mb-space-sm">
           <h2 className="text-[21px] font-extrabold text-on-surface">회차별 목표매출</h2>
           <p className="text-[17px] text-on-surface-variant font-semibold mt-0.5">
-            {meta.step / 10000}만원 단위 · 최소 {meta.min / 10000}만원 · 모두 {rounds.length}회차
+            {meta.step / 10000}만원 단위 · 최소 {meta.min / 10000}만원 · 1~{MAX_AGE}회차 고정
           </p>
         </div>
 
@@ -572,13 +581,6 @@ export default function SimulatorClient({
                   >
                     <Icon name="add" size={22} />
                   </button>
-                  <button
-                    onClick={() => removeRound(i)}
-                    aria-label={`${i + 1}회차 삭제`}
-                    className="w-9 h-11 rounded-lg text-outline flex items-center justify-center active:scale-90 shrink-0"
-                  >
-                    <Icon name="delete" size={18} />
-                  </button>
                 </div>
               );
             })}
@@ -586,17 +588,11 @@ export default function SimulatorClient({
         )}
 
         <div className="flex items-center gap-2 mb-space-lg">
-          <button
-            onClick={addRound}
-            className="flex-1 min-h-[56px] rounded-xl bg-surface-container text-primary text-[18px] font-bold flex items-center justify-center gap-1.5 active:scale-[0.98]"
-          >
-            <Icon name="add_circle" size={22} />회차 추가
-          </button>
           <Link
             href={`/timeline?plan=${id}`}
             className="flex-1 min-h-[56px] rounded-xl bg-surface-container text-on-surface text-[18px] font-bold flex items-center justify-center gap-1.5"
           >
-            <Icon name="timeline" size={22} />회차별 정보
+            <Icon name="timeline" size={22} />회차수당표
           </Link>
         </div>
 

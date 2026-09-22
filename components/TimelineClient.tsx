@@ -104,7 +104,7 @@ export default function TimelineClient({
           <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
             <Icon name="timeline" size={20} className="text-on-primary" />
           </div>
-          <h1 className="text-headline-sm font-headline-sm text-on-surface font-bold">회차별 정보</h1>
+          <h1 className="text-headline-sm font-headline-sm text-on-surface font-bold">회차수당표</h1>
         </div>
       </header>
 

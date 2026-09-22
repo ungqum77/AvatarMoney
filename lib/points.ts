@@ -253,10 +253,16 @@ export interface PlanTemplate {
 }
 
 export const PLAN_TEMPLATES: PlanTemplate[] = [
-  { label: "1100 - 330", first: 11_000_000, rest: 3_300_000 },
   { label: "110 - 33", first: 1_100_000, rest: 330_000 },
-  { label: "110 - 110", first: 1_100_000, rest: 1_100_000 },
   { label: "110 - 55", first: 1_100_000, rest: 550_000 },
+  { label: "110 - 110", first: 1_100_000, rest: 1_100_000 },
+  { label: "330 - 110", first: 3_300_000, rest: 1_100_000 },
+  { label: "330 - 165", first: 3_300_000, rest: 1_650_000 },
+  { label: "550 - 110", first: 5_500_000, rest: 1_100_000 },
+  { label: "550 - 165", first: 5_500_000, rest: 1_650_000 },
+  { label: "550 - 330", first: 5_500_000, rest: 3_300_000 },
+  { label: "550 - 550", first: 5_500_000, rest: 5_500_000 },
+  { label: "1100 - 330", first: 11_000_000, rest: 3_300_000 },
   { label: "1100 - 550", first: 11_000_000, rest: 5_500_000 },
 ];
 
