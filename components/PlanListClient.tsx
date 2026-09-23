@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { manwon, multiple, bigWon } from "@/lib/format";
 import type { PlanType } from "@/lib/points";
-import { PLAN_META } from "@/lib/points";
+import { PLAN_META, PLAN_HORIZON } from "@/lib/points";
 import InstallPrompt from "@/components/InstallPrompt";
 import AdBanner from "@/components/AdBanner";
 import Icon from "@/components/Icon";
@@ -20,6 +20,12 @@ export interface PlanCardData {
   totalInvest: number;
   totalNet: number;
   roi: number;
+  /** 지금 내가 몇 회차인지. 0 = 아직 안 정함 */
+  currentRound: number;
+  /** currentRound 회차까지 받은 실지급 (0이면 미설정) */
+  received: number;
+  /** 그 다음 회차부터 18회차까지 받을 실지급 */
+  remaining: number;
 }
 
 export default function PlanListClient({
@@ -59,6 +65,8 @@ export default function PlanListClient({
         name: `${card.name} (복사본)`,
         planType: card.planType,
         rounds: card.goals && card.goals.length ? card.goals : [PLAN_META[card.planType].min],
+        // 같은 사람의 같은 회차다. 복사본에도 내 회차를 그대로 가져간다.
+        currentRound: card.currentRound,
       }),
     });
     setBusy(false);
@@ -116,7 +124,9 @@ export default function PlanListClient({
             </span>
             <span className="text-headline-md font-headline-md text-secondary font-bold">만 원</span>
           </div>
-          <p className="text-label-sm text-on-surface-variant mt-1">실지급(세후 3.3% 제외) 기준 예상액</p>
+          <p className="text-label-sm text-on-surface-variant mt-1">
+            실지급(세후 3.3% 제외) · 플랜마다 1~{PLAN_HORIZON}회차 정산을 모두 합한 금액
+          </p>
         </section>
 
         {/* 새 플랜 */}
@@ -149,6 +159,16 @@ export default function PlanListClient({
                   <span className="px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface text-label-sm font-semibold">
                     극점 {c.capLabel}
                   </span>
+                  {/* 이 플랜에서 내가 지금 몇 회차인지 */}
+                  {c.currentRound > 0 ? (
+                    <span className="px-2.5 py-1 rounded-full bg-primary text-on-primary text-label-sm font-bold">
+                      내 {c.currentRound}회차
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant text-label-sm font-semibold">
+                      회차 미설정
+                    </span>
+                  )}
                 </div>
                 <h3 className="text-headline-sm font-headline-sm text-on-surface font-bold mt-2 leading-snug">{c.name}</h3>
 
@@ -164,7 +184,9 @@ export default function PlanListClient({
                     </span>
                   </div>
                   <div className="col-span-2 pt-2 flex flex-col border-t border-surface-container">
-                    <span className="text-label-sm text-on-surface-variant">총 예상 수당(실지급)</span>
+                    <span className="text-label-sm text-on-surface-variant">
+                      총 예상 수당(실지급) · 1~{PLAN_HORIZON}회차 합계
+                    </span>
                     <div className="flex items-baseline gap-1 mt-0.5">
                       <span className="text-display-currency-mobile font-display-currency-mobile text-primary font-extrabold">
                         {bigWon(c.totalNet)}
@@ -172,6 +194,28 @@ export default function PlanListClient({
                       <span className="text-headline-md font-headline-md text-primary font-bold">원</span>
                     </div>
                   </div>
+
+                  {/* 내 회차를 정해뒀으면 그 중 얼마가 이미 받은 돈인지 */}
+                  {c.currentRound > 0 && (
+                    <div className="col-span-2 pt-2 flex items-center justify-between gap-2 border-t border-surface-container">
+                      <div className="min-w-0">
+                        <span className="text-label-sm text-on-surface-variant block">
+                          내 {c.currentRound}회차까지 받음
+                        </span>
+                        <span className="text-body-lg-bold font-body-lg-bold text-on-surface">
+                          {bigWon(c.received)}원
+                        </span>
+                      </div>
+                      <div className="min-w-0 text-right">
+                        <span className="text-label-sm text-on-surface-variant block">
+                          앞으로 {PLAN_HORIZON - c.currentRound}회차 더
+                        </span>
+                        <span className="text-body-lg-bold font-body-lg-bold text-secondary">
+                          {bigWon(c.remaining)}원
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2">

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { shortKRW, multiple, bigWon } from "@/lib/format";
-import { planSummary, PLAN_META, type PlanType } from "@/lib/points";
+import { planSummary, PLAN_META, PLAN_HORIZON, type PlanType } from "@/lib/points";
 import Icon from "@/components/Icon";
 
 export interface PresentPlan {
@@ -104,6 +104,10 @@ export default function PresentClient({
               <div className="text-[42px] leading-tight font-black text-emerald-400 num-font drop-shadow-md">
                 {bigWon(summary.totalNet)} <span className="text-2xl font-bold text-emerald-300">원</span>
               </div>
+              {/* 몇 회차까지 받는 돈인지 밝힌다. 안 적으면 당장 손에 들어오는 돈으로 읽힌다. */}
+              <p className="mt-1 text-sm font-bold text-slate-400">
+                1~{PLAN_HORIZON}회차 정산을 모두 합한 금액
+              </p>
               <p className="mt-2 text-sm font-bold text-slate-300 bg-slate-900/80 py-1.5 px-3 rounded-lg inline-block border border-slate-800">
                 순수익 <span className="text-emerald-400 font-extrabold">+{bigWon(summary.totalNet - summary.totalInvest)}원</span>
               </p>

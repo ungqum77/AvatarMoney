@@ -4,9 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import Icon, { type IconName } from "@/components/Icon";
 
+// '플랜설정' 탭은 뺐다. 눌러도 /plans/[id] 로 넘어가 버려서 정작 자기 탭은
+// 켜지지 않았고(홈이 켜졌다), 홈 → 플랜 열기 와 목적지가 같았다.
 const TABS: { href: string; icon: IconName; label: string }[] = [
   { href: "/plans", icon: "home", label: "홈" },
-  { href: "/simulator", icon: "calculate", label: "플랜설정" },
   { href: "/timeline", icon: "timeline", label: "회차수당표" },
   { href: "/me", icon: "account_circle", label: "내정보" },
 ];

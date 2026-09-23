@@ -18,6 +18,7 @@ export default async function TimelinePage({
     planType: p.planType,
     capLabel: PLAN_META[p.planType].capLabel,
     rounds: p.rounds,
+    currentRound: p.currentRound,
   }));
   const selectedId = searchParams.plan ? Number(searchParams.plan) : list[0]?.id ?? null;
   return <TimelineClient plans={list} selectedId={selectedId} />;

@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, desc } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { plans } from "@/lib/db/schema";
-import type { PlanType } from "@/lib/points";
+import { sanitizeCurrentRound, type PlanType } from "@/lib/points";
 
 export interface PlanDTO {
   id: number;
@@ -10,6 +10,8 @@ export interface PlanDTO {
   planType: PlanType;
   rounds: number[];
   allowZero: boolean;
+  /** 지금 내 회차. 0 = 아직 안 정함 */
+  currentRound: number;
   updatedAt: number | null;
   createdAt: number;
 }
@@ -28,6 +30,7 @@ function toDTO(row: typeof plans.$inferSelect): PlanDTO {
     planType: (row.planType === "won11" ? "won11" : "won33") as PlanType,
     rounds,
     allowZero: row.allowZero === 1,
+    currentRound: sanitizeCurrentRound(row.currentRound),
     updatedAt: row.updatedAt,
     createdAt: row.createdAt,
   };
@@ -55,7 +58,13 @@ export async function getPlan(userId: number, id: number): Promise<PlanDTO | nul
 
 export async function createPlan(
   userId: number,
-  data: { name: string; planType: PlanType; rounds: number[]; allowZero?: boolean }
+  data: {
+    name: string;
+    planType: PlanType;
+    rounds: number[];
+    allowZero?: boolean;
+    currentRound?: number;
+  }
 ): Promise<PlanDTO> {
   const db = getDb();
   const now = Date.now();
@@ -67,6 +76,7 @@ export async function createPlan(
       planType: data.planType,
       roundsJson: JSON.stringify(data.rounds),
       allowZero: data.allowZero ? 1 : 0,
+      currentRound: sanitizeCurrentRound(data.currentRound),
       createdAt: now,
       updatedAt: now,
     })
@@ -77,7 +87,13 @@ export async function createPlan(
 export async function updatePlan(
   userId: number,
   id: number,
-  data: Partial<{ name: string; planType: PlanType; rounds: number[]; allowZero: boolean }>
+  data: Partial<{
+    name: string;
+    planType: PlanType;
+    rounds: number[];
+    allowZero: boolean;
+    currentRound: number;
+  }>
 ): Promise<PlanDTO | null> {
   const db = getDb();
   const patch: Record<string, unknown> = { updatedAt: Date.now() };
@@ -85,6 +101,7 @@ export async function updatePlan(
   if (data.planType !== undefined) patch.planType = data.planType;
   if (data.rounds !== undefined) patch.roundsJson = JSON.stringify(data.rounds);
   if (data.allowZero !== undefined) patch.allowZero = data.allowZero ? 1 : 0;
+  if (data.currentRound !== undefined) patch.currentRound = sanitizeCurrentRound(data.currentRound);
   const updated = await db
     .update(plans)
     .set(patch)

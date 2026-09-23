@@ -15,6 +15,7 @@ export default function RoundDetailSheet({
   capLabel,
   round,
   lastRound,
+  currentRound = 0,
   onRound,
   onClose,
 }: {
@@ -23,6 +24,8 @@ export default function RoundDetailSheet({
   capLabel: string;
   round: number;
   lastRound: number;
+  /** 지금 내가 몇 회차인지. 0 = 아직 안 정함 */
+  currentRound?: number;
   onRound: (r: number) => void;
   onClose: () => void;
 }) {
@@ -62,7 +65,7 @@ export default function RoundDetailSheet({
       {/* 헤더 */}
       <header className="shrink-0 pt-safe bg-surface-container-low shadow-sm">
         <div className="h-16 px-margin-mobile flex items-center justify-between">
-          <h2 className="text-headline-md font-headline-md text-on-surface font-bold">회차별 자세히</h2>
+          <h2 className="text-headline-md font-headline-md text-on-surface font-bold">회차별 계산식</h2>
           <button
             onClick={onClose}
             aria-label="닫기"
@@ -93,6 +96,18 @@ export default function RoundDetailSheet({
             <div className="text-[17px] text-on-surface-variant font-semibold mt-1">
               모두 {lastRound}회차
             </div>
+            {/* 지금 보고 있는 회차가 내 회차인지 바로 알 수 있게 */}
+            {currentRound > 0 && (
+              <div
+                className={`mt-1 inline-block px-2 py-0.5 rounded-full text-[15px] font-bold ${
+                  currentRound === round
+                    ? "bg-primary text-on-primary"
+                    : "bg-surface-container text-on-surface-variant"
+                }`}
+              >
+                {currentRound === round ? "지금 내 회차" : `내 회차는 ${currentRound}회차`}
+              </div>
+            )}
           </div>
           <button
             onClick={() => onRound(round + 1)}
@@ -114,7 +129,9 @@ export default function RoundDetailSheet({
               className={`min-w-[48px] h-12 rounded-xl text-[18px] font-bold shrink-0 ${
                 r === round
                   ? "bg-primary text-on-primary shadow-sm"
-                  : "bg-surface-container-lowest text-on-surface-variant"
+                  : r === currentRound
+                    ? "bg-primary-fixed text-on-primary-fixed ring-2 ring-primary"
+                    : "bg-surface-container-lowest text-on-surface-variant"
               }`}
             >
               {r}

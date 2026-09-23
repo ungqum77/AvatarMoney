@@ -13,6 +13,8 @@ import {
   PLAN_TEMPLATES,
   PLAN_META,
   MAX_AGE,
+  sanitizeCurrentRound,
+  splitByCurrentRound,
 } from "./points";
 
 // docs/계산규칙-avatarPoint.md 의 검증 정답표를 그대로 고정.
@@ -492,7 +494,7 @@ describe("플랜 템플릿", () => {
     }
   });
 
-  it("사장님이 정한 열한 가지가 1회차 금액 오름차순으로 있다", () => {
+  it("사장님이 정한 열두 가지가 1회차 금액 오름차순으로 있다", () => {
     expect(PLAN_TEMPLATES.map((t) => t.label)).toEqual([
       "110 - 33",
       "110 - 55",
@@ -505,6 +507,7 @@ describe("플랜 템플릿", () => {
       "550 - 550",
       "1100 - 330",
       "1100 - 550",
+      "1100 - 1100",
     ]);
   });
 
@@ -578,5 +581,55 @@ describe("18회차 기준", () => {
     const heavy = Array.from({ length: 18 }, (_, i) => 330_000 + i * 3_300_000);
     const s = planSummary(heavy, cap);
     if (s.breakEvenRound !== null) expect(s.breakEvenRound).toBeLessThanOrEqual(18);
+  });
+});
+
+// ============================================================================
+// 내 현재 회차 — 총 수당을 '받은 것 / 앞으로 받을 것' 으로 가른다
+// ============================================================================
+describe("현재 회차", () => {
+  const cap = CAP.won33;
+  const goals = Array.from({ length: 18 }, () => 330_000);
+  const s = planSummary(goals, cap);
+
+  it("1~18 밖의 값은 저장하지 않는다 (0 = 안 정함)", () => {
+    expect([
+      sanitizeCurrentRound(0),
+      sanitizeCurrentRound(-3),
+      sanitizeCurrentRound(1),
+      sanitizeCurrentRound(18),
+      sanitizeCurrentRound(19),
+      sanitizeCurrentRound(999),
+      sanitizeCurrentRound("7"),
+      sanitizeCurrentRound(null),
+      sanitizeCurrentRound(undefined),
+      sanitizeCurrentRound("아무말"),
+    ]).toEqual([0, 0, 1, 18, 18, 18, 7, 0, 0, 0]);
+  });
+
+  it("안 정했으면 가르지 않는다", () => {
+    expect(splitByCurrentRound(s, 0)).toBeNull();
+  });
+
+  it("받은 것 + 앞으로 받을 것 = 총 수당", () => {
+    for (let r = 1; r <= PLAN_HORIZON; r++) {
+      const sp = splitByCurrentRound(s, r);
+      expect([r, sp!.received + sp!.remaining]).toEqual([r, s.totalNet]);
+    }
+  });
+
+  it("받은 것은 그 회차까지의 누적, 남은 회차는 18에서 뺀 값", () => {
+    const sp = splitByCurrentRound(s, 5)!;
+    expect([sp.round, sp.received, sp.thisRound, sp.roundsLeft]).toEqual([
+      5,
+      s.inflow[4].cumulative,
+      s.inflow[4].net,
+      13,
+    ]);
+  });
+
+  it("18회차면 남은 돈이 없다", () => {
+    const sp = splitByCurrentRound(s, 18)!;
+    expect([sp.received, sp.remaining, sp.roundsLeft]).toEqual([s.totalNet, 0, 0]);
   });
 });

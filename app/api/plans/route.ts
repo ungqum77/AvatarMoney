@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { getPlansForUser, createPlan } from "@/lib/plans";
-import { PLAN_META, PLAN_HORIZON, type PlanType } from "@/lib/points";
+import { PLAN_META, PLAN_HORIZON, sanitizeCurrentRound, type PlanType } from "@/lib/points";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,7 +43,8 @@ export async function POST(req: Request) {
     const name = String(body.name ?? "새 플랜").slice(0, 60) || "새 플랜";
     const allowZero = body.allowZero === true;
     const rounds = sanitizeRounds(body.rounds, planType, allowZero);
-    const plan = await createPlan(user.id, { name, planType, rounds, allowZero });
+    const currentRound = sanitizeCurrentRound(body.currentRound);
+    const plan = await createPlan(user.id, { name, planType, rounds, allowZero, currentRound });
     return NextResponse.json({ plan });
   } catch (e) {
     console.error("create plan error", e);

@@ -7,8 +7,10 @@ import { won, shortKRW, multiple, bigWon } from "@/lib/format";
 import {
   planSummary,
   avatarNetInPlan,
+  splitByCurrentRound,
   PLAN_META,
   PLAN_TEMPLATES,
+  PLAN_HORIZON,
   MAX_AGE,
   type PlanType,
   type PlanTemplate,
@@ -39,6 +41,7 @@ export default function SimulatorClient({
   initialType,
   initialRounds,
   initialAllowZero,
+  initialCurrentRound,
   otherPlans,
 }: {
   id: number;
@@ -46,6 +49,8 @@ export default function SimulatorClient({
   initialType: PlanType;
   initialRounds: number[];
   initialAllowZero: boolean;
+  /** 지금 내가 몇 회차인지. 0 = 아직 안 정함 */
+  initialCurrentRound: number;
   /** 같은 회원의 다른 플랜들. 헤더에서 갈아타기용 */
   otherPlans: { id: number; name: string }[];
 }) {
@@ -55,6 +60,9 @@ export default function SimulatorClient({
   // 아바타를 0으로(그 회차엔 안 만들기) 잡을 수 있는지
   const [allowZero, setAllowZero] = useState(initialAllowZero);
   const [rounds, setRounds] = useState<number[]>(() => toFullRounds(initialRounds, initialType));
+  // 지금 내가 몇 회차인지. 0 = 아직 안 정함.
+  // 대표 숫자가 '어디까지 받는 돈'인지 가르고, 회차수당표에서 내 자리를 짚는 데 쓴다.
+  const [currentRound, setCurrentRound] = useState(initialCurrentRound);
   // 2회차부터 직접 넣는 금액(만원). 11 단위로만 받는다. 11 → 11만원, 110 → 110만원.
   const [customMan, setCustomMan] = useState("");
   const [toast, setToast] = useState("");
@@ -67,6 +75,7 @@ export default function SimulatorClient({
     name: initialName,
     type: initialType,
     allowZero: initialAllowZero,
+    currentRound: initialCurrentRound,
     rounds: toFullRounds(initialRounds, initialType).join(","),
   }));
 
@@ -74,14 +83,21 @@ export default function SimulatorClient({
   const presets =
     type === "won33" ? [330000, 440000, 550000, 660000] : [110000, 220000, 330000, 440000];
   // 2회차부터 한 번에 채울 때 자주 쓰는 금액. 1회차 프리셋과는 쓰임이 다르다.
-  const fillPresets = [1_100_000, 1_650_000, 3_300_000, 5_500_000, 11_000_000];
+  // 유형 최저보다 작은 금액은 눌러도 최저로 올라가버려 거짓말이 되므로 아예 감춘다.
+  // (33만원형에서 11만은 안 보이고, 11만원형에서는 11만부터 보인다)
+  const fillPresets = [
+    110_000, 330_000, 1_100_000, 1_650_000, 3_300_000, 5_500_000, 11_000_000,
+  ].filter((v) => v >= meta.min);
 
   const summary = useMemo(() => planSummary(rounds, meta.cap), [rounds, meta.cap]);
+  // 내 회차를 정했을 때만: 총 수당을 '이미 받은 것 / 앞으로 받을 것'으로 가른다
+  const split = useMemo(() => splitByCurrentRound(summary, currentRound), [summary, currentRound]);
 
   const dirty =
     name !== saved.name ||
     type !== saved.type ||
     allowZero !== saved.allowZero ||
+    currentRound !== saved.currentRound ||
     rounds.join(",") !== saved.rounds;
 
   /** 1회차(본코드)는 반드시 만들어야 하므로 0으로 못 잡는다 */
@@ -183,11 +199,23 @@ export default function SimulatorClient({
     const res = await fetch(`/api/plans/${id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: name.trim() || "새 플랜", planType: type, rounds, allowZero }),
+      body: JSON.stringify({
+        name: name.trim() || "새 플랜",
+        planType: type,
+        rounds,
+        allowZero,
+        currentRound,
+      }),
     });
     setSaving(false);
     if (res.ok) {
-      setSaved({ name: name.trim() || "새 플랜", type, allowZero, rounds: rounds.join(",") });
+      setSaved({
+        name: name.trim() || "새 플랜",
+        type,
+        allowZero,
+        currentRound,
+        rounds: rounds.join(","),
+      });
       setToast("플랜이 저장되었습니다 ✓");
       setTimeout(() => setToast(""), 2200);
       router.refresh();
@@ -206,15 +234,22 @@ export default function SimulatorClient({
             <Link href="/plans" className="w-11 h-11 flex items-center justify-center rounded-full text-on-surface active:bg-surface-container">
               <Icon name="arrow_back" size={26} />
             </Link>
-            {/* 어떤 플랜을 고치고 있는지 헤더에서 바로 보이게 한다.
-                전에는 '시뮬레이터' 만 있어서 어느 플랜인지 알 수 없었다. */}
+            {/* 어떤 플랜을 고치고 있는지가 헤더에서 제일 크게 보여야 한다.
+                '플랜 설정' 이 큰 글씨면 정작 플랜 이름이 뒤로 밀린다. */}
             <div className="min-w-0">
-              <div className="text-[14px] font-semibold text-on-surface-variant leading-none">
-                플랜 설정
-              </div>
-              <h1 className="text-[19px] font-bold text-on-surface leading-tight truncate">
+              <h1 className="text-[21px] font-extrabold text-on-surface leading-tight truncate">
                 {name || "새 플랜"}
               </h1>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="px-1.5 py-0.5 rounded-md bg-primary-fixed text-on-primary-fixed text-[13px] font-bold leading-none">
+                  {meta.label}
+                </span>
+                {currentRound > 0 && (
+                  <span className="px-1.5 py-0.5 rounded-md bg-secondary-container text-on-secondary-container text-[13px] font-bold leading-none">
+                    내 {currentRound}회차
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <Link
@@ -296,13 +331,65 @@ export default function SimulatorClient({
               </span>
             </div>
           </label>
+
+          {/* 지금 내가 몇 회차인지. 정해두면 대표 숫자(총 예상 수당)를
+              '이미 받은 돈 / 앞으로 받을 돈' 으로 갈라 보여주고,
+              회차수당표에서 내 줄을 짚어준다. 0 = 아직 안 정함. */}
+          <div className="rounded-xl bg-surface-container-low px-3 py-3">
+            <span className="block text-[19px] font-bold text-on-surface leading-tight">
+              현재 나의 회차는?
+            </span>
+            <span className="block text-[16px] font-semibold text-on-surface-variant leading-snug mt-0.5">
+              {currentRound > 0
+                ? `지금 ${currentRound}회차입니다 · 회차수당표에서 이 줄을 짚어드립니다`
+                : "정해두면 받은 돈과 앞으로 받을 돈을 갈라서 보여드립니다"}
+            </span>
+            <div className="mt-2 flex items-center gap-1.5 overflow-x-auto pb-1">
+              <button
+                onClick={() => setCurrentRound(0)}
+                className={`min-h-[48px] px-3.5 rounded-xl text-[17px] font-bold whitespace-nowrap shrink-0 ${
+                  currentRound === 0
+                    ? "bg-primary text-on-primary shadow-sm"
+                    : "bg-surface-container-lowest text-on-surface-variant"
+                }`}
+              >
+                안 정함
+              </button>
+              {Array.from({ length: PLAN_HORIZON }, (_, i) => i + 1).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setCurrentRound(r)}
+                  aria-label={`현재 ${r}회차`}
+                  className={`min-w-[48px] h-12 rounded-xl text-[18px] font-bold shrink-0 ${
+                    currentRound === r
+                      ? "bg-primary text-on-primary shadow-sm"
+                      : "bg-surface-container-lowest text-on-surface"
+                  }`}
+                >
+                  {r}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* 요약 (sticky) */}
         <div className="sticky top-16 z-30 mb-space-lg">
           <div className="bg-surface-container-lowest rounded-2xl p-space-md shadow-md">
+            {/* 스크롤을 내려도 어느 플랜의 숫자인지 붙어 있어야 한다 */}
+            <div className="flex items-center gap-1.5 mb-2 px-1">
+              <Icon name="tune" size={16} className="text-primary" />
+              <span className="text-[15px] font-bold text-on-surface truncate">
+                {name || "새 플랜"}
+              </span>
+              <span className="text-[14px] font-semibold text-on-surface-variant shrink-0">
+                · {meta.label}
+              </span>
+            </div>
             <div className="flex items-center justify-between bg-surface-container-low/60 rounded-xl px-3.5 py-2.5 mb-3">
-              <span className="text-label-md font-semibold text-on-surface-variant">총 매출 누적</span>
+              <span className="text-label-md font-semibold text-on-surface-variant">
+                총 매출 누적 <span className="text-[14px]">(1~{PLAN_HORIZON}회차)</span>
+              </span>
               <span className="text-headline-md font-headline-md text-on-surface font-bold">{bigWon(summary.totalInvest)}원</span>
             </div>
             <div className="px-1">
@@ -320,8 +407,35 @@ export default function SimulatorClient({
                 </span>
                 <span className="text-body-lg-bold font-body-lg-bold text-secondary">원</span>
               </div>
+              {/* 이 숫자가 '언제까지' 받는 돈인지 밝힌다. 회차를 안 적으면
+                  34억이 당장 손에 들어오는 돈처럼 읽힌다. */}
+              <p className="text-[15px] font-bold text-on-surface-variant leading-snug mt-0.5">
+                1~{PLAN_HORIZON}회차 정산을 모두 합한 금액입니다
+              </p>
             </div>
 
+            {/* 내 회차를 정했으면 여기까지 받은 돈과 앞으로 받을 돈을 가른다 */}
+            {split && (
+              <div className="mt-2.5 rounded-xl bg-surface-container-low px-3 py-2.5 flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="text-[15px] font-bold text-on-surface-variant leading-tight">
+                    내 {split.round}회차까지 받음
+                  </div>
+                  <div className="text-[20px] font-extrabold text-on-surface num-font leading-tight">
+                    {bigWon(split.received)}원
+                  </div>
+                </div>
+                <Icon name="arrow_forward" size={20} className="text-outline shrink-0" />
+                <div className="min-w-0 text-right">
+                  <div className="text-[15px] font-bold text-secondary leading-tight">
+                    앞으로 {split.roundsLeft}회차 더
+                  </div>
+                  <div className="text-[20px] font-extrabold text-secondary num-font leading-tight">
+                    {bigWon(split.remaining)}원
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -366,27 +480,36 @@ export default function SimulatorClient({
             <p className="text-[19px] font-bold text-on-surface mb-2">
               2회차부터 얼마로 채울까요?
             </p>
-            <div className="flex flex-wrap items-center gap-2">
+            {/* 금액은 4칸 격자로 줄을 맞춘다. 일곱 개가 wrap 으로 흩어지면
+                어디까지가 금액 버튼인지 한눈에 안 들어온다. */}
+            <div className="grid grid-cols-4 gap-2">
               {fillPresets.map((p) => (
                 <button
                   key={p}
                   onClick={() => fillRest(p)}
-                  className="min-h-[56px] px-4 rounded-xl bg-surface-container text-on-surface text-[18px] font-bold active:scale-95"
+                  className="min-h-[56px] rounded-xl bg-surface-container text-on-surface text-[18px] font-bold active:scale-95"
                 >
                   {p / 10000}만
                 </button>
               ))}
+            </div>
+            {/* '1회차와 같게' 는 금액이 아니라 동작이다. 금액 칸에 섞어두면
+                고를 금액이 하나 더 있는 것처럼 보여서 줄을 나눈다.
+                어떤 금액으로 채워지는지 버튼에 적어둔다. */}
+            <div className="flex items-center gap-2 mt-2">
               <button
                 onClick={() => fillRest(rounds[0] ?? meta.min)}
-                className="min-h-[56px] px-4 rounded-xl bg-primary text-on-primary text-[18px] font-bold flex items-center gap-1.5 active:scale-95"
+                className="flex-1 min-w-0 min-h-[56px] px-4 rounded-xl bg-primary text-on-primary text-[18px] font-bold flex items-center justify-center gap-1.5 active:scale-95"
               >
                 <Icon name="content_copy" size={20} />
-                1회차와 같게
+                <span className="truncate">
+                  1회차와 같게 ({manLabel(rounds[0] ?? meta.min)})
+                </span>
               </button>
               {allowZero && (
                 <button
                   onClick={() => fillRest(0)}
-                  className="min-h-[56px] px-4 rounded-xl bg-surface-container text-on-surface-variant text-[18px] font-bold active:scale-95"
+                  className="min-h-[56px] px-4 rounded-xl bg-surface-container text-on-surface-variant text-[18px] font-bold shrink-0 active:scale-95"
                 >
                   안 만들기
                 </button>
@@ -463,13 +586,13 @@ export default function SimulatorClient({
           </div>
         </section>
 
-        {/* 회차별 자세히 보기 */}
+        {/* 회차별 계산식 보기 */}
         <button
           onClick={() => setOpenRound(1)}
           className="attention-blink w-full min-h-[60px] rounded-2xl bg-secondary text-on-secondary text-[20px] font-extrabold flex items-center justify-center gap-2 shadow-md active:scale-[0.98] mb-space-lg"
         >
           <Icon name="timeline" size={24} />
-          회차별 수당 세부정보
+          회차별 계산식 보기
         </button>
 
         {/* 회차별 목표매출 */}
@@ -485,6 +608,7 @@ export default function SimulatorClient({
           <div className="flex items-center justify-between mb-2">
             <span className="px-3 py-1.5 rounded-full bg-primary text-on-primary text-[17px] font-bold">
               1회차 · 본코드
+              {currentRound === 1 && " · 내 회차"}
             </span>
             <span className="text-[17px] font-bold text-secondary">
               18회차까지 +{shortKRW(avatarNetInPlan(rounds[0] ?? meta.min, meta.cap, 1))}원
@@ -533,7 +657,7 @@ export default function SimulatorClient({
               onClick={() => setOpenRound(1)}
               className="min-h-[48px] px-3.5 rounded-xl bg-surface-container text-primary text-[17px] font-bold whitespace-nowrap"
             >
-              자세히
+              회차별 계산식
             </button>
           </div>
         </section>
@@ -543,13 +667,24 @@ export default function SimulatorClient({
           <div className="flex flex-col gap-2 mb-space-md">
             {rounds.slice(1).map((goal, idx) => {
               const i = idx + 1;
+              // 내가 지금 몇 회차인지 정해뒀다면 그 줄을 짚어준다
+              const mine = currentRound === i + 1;
               return (
                 <div
                   key={i}
-                  className="bg-surface-container-lowest rounded-xl pl-3 pr-1.5 py-2 shadow-sm flex items-center gap-1.5"
+                  className={`rounded-xl pl-3 pr-1.5 py-2 shadow-sm flex items-center gap-1.5 ${
+                    mine
+                      ? "bg-primary-fixed ring-2 ring-primary"
+                      : "bg-surface-container-lowest"
+                  }`}
                 >
                   <span className="w-[52px] shrink-0 text-[17px] font-bold text-on-surface-variant">
                     {i + 1}회차
+                    {mine && (
+                      <span className="block text-[13px] font-extrabold text-primary leading-none">
+                        내 회차
+                      </span>
+                    )}
                   </span>
                   {/* 금액과 평생수당은 줄바꿈되지 않게 한 칸에 묶는다 */}
                   <button
@@ -639,6 +774,7 @@ export default function SimulatorClient({
           capLabel={meta.capLabel}
           round={openRound}
           lastRound={summary.inflow.length}
+          currentRound={currentRound}
           onRound={setOpenRound}
           onClose={() => setOpenRound(null)}
         />

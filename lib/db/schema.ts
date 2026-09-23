@@ -20,6 +20,8 @@ export const plans = sqliteTable("plans", {
   roundsJson: text("rounds_json").notNull(), // JSON: number[] (회차별 목표매출)
   // 아바타를 0으로(그 회차엔 안 만들기) 잡을 수 있는지. 0=불가 / 1=가능
   allowZero: integer("allow_zero").notNull().default(0),
+  // 지금 내가 몇 회차인지. 0=아직 안 정함 / 1~18
+  currentRound: integer("current_round").notNull().default(0),
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at"),
 });

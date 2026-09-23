@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { getPlan, updatePlan, deletePlan } from "@/lib/plans";
-import { PLAN_META, PLAN_HORIZON, type PlanType } from "@/lib/points";
+import { PLAN_META, PLAN_HORIZON, sanitizeCurrentRound, type PlanType } from "@/lib/points";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +41,7 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
       planType?: PlanType;
       rounds?: number[];
       allowZero?: boolean;
+      currentRound?: number;
     } = {};
     let planType: PlanType | undefined;
     if (body.planType !== undefined) {
@@ -49,6 +50,8 @@ export async function PUT(req: Request, { params }: { params: { id: string } }) 
     }
     if (body.name !== undefined) patch.name = String(body.name).slice(0, 60);
     if (body.allowZero !== undefined) patch.allowZero = body.allowZero === true;
+    // 지금 내 회차. 0 = 아직 안 정함, 1~18 만 저장한다.
+    if (body.currentRound !== undefined) patch.currentRound = sanitizeCurrentRound(body.currentRound);
     if (body.rounds !== undefined) {
       // 유형이 바뀌면 새 유형 기준으로, 아니면 기존 조회 필요 → 기본 won33 기준 보정
       const effType = planType ?? "won33";

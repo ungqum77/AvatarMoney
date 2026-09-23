@@ -264,6 +264,7 @@ export const PLAN_TEMPLATES: PlanTemplate[] = [
   { label: "550 - 550", first: 5_500_000, rest: 5_500_000 },
   { label: "1100 - 330", first: 11_000_000, rest: 3_300_000 },
   { label: "1100 - 550", first: 11_000_000, rest: 5_500_000 },
+  { label: "1100 - 1100", first: 11_000_000, rest: 11_000_000 },
 ];
 
 export interface InflowRow {
@@ -375,5 +376,50 @@ export function planSummary(goals: number[], cap: number): PlanSummary {
     peakRound,
     breakEvenRound,
     selfFundRound,
+  };
+}
+
+// ============================================================================
+// 내 현재 회차 — 총 수당이 '어디까지 받은 돈'인지 가르는 기준
+// ============================================================================
+
+/**
+ * 플랜에 저장하는 '지금 내가 몇 회차인지'. 0 = 아직 안 정함.
+ * 1~18 밖의 값은 저장하지 않는다(화면·표가 모두 18회차 기준이다).
+ */
+export function sanitizeCurrentRound(n: unknown): number {
+  const v = Math.round(Number(n) || 0);
+  if (v < 1) return 0;
+  return Math.min(v, PLAN_HORIZON);
+}
+
+/**
+ * 총 예상 수당을 '지금까지 받은 것'과 '앞으로 받을 것'으로 가른다.
+ * 화면의 대표 숫자(34억…)가 18회차까지 다 받았을 때의 값이라
+ * 지금 내 회차를 모르면 언제 받는 돈인지 알 수 없다.
+ */
+export interface CurrentRoundSplit {
+  round: number; // 기준 회차 (= 내 현재 회차)
+  received: number; // 1~round 누적 실지급
+  thisRound: number; // round 회차에 받는 실지급
+  remaining: number; // round+1 ~ 18 실지급 (= totalNet − received)
+  roundsLeft: number; // 남은 회차 수
+}
+
+/** @param currentRound 1~18. 0(미설정)이면 null */
+export function splitByCurrentRound(
+  s: PlanSummary,
+  currentRound: number
+): CurrentRoundSplit | null {
+  const r = sanitizeCurrentRound(currentRound);
+  if (r < 1) return null;
+  const row = s.inflow[r - 1];
+  const received = row ? row.cumulative : 0;
+  return {
+    round: r,
+    received,
+    thisRound: row ? row.net : 0,
+    remaining: s.totalNet - received,
+    roundsLeft: PLAN_HORIZON - r,
   };
 }

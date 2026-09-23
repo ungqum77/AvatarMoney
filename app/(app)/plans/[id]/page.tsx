@@ -20,6 +20,7 @@ export default async function SimulatorPage({ params }: { params: { id: string }
       initialType={plan.planType}
       initialRounds={plan.rounds}
       initialAllowZero={plan.allowZero}
+      initialCurrentRound={plan.currentRound}
       otherPlans={otherPlans}
     />
   );

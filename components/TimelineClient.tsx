@@ -6,7 +6,9 @@ import { won, shortKRW, multiple, bigWon } from "@/lib/format";
 import {
   planSummary,
   roundDetail,
+  splitByCurrentRound,
   PLAN_META,
+  PLAN_HORIZON,
   type PlanType,
 } from "@/lib/points";
 import AdBanner from "@/components/AdBanner";
@@ -19,6 +21,8 @@ export interface TimelinePlan {
   planType: PlanType;
   capLabel: string;
   rounds: number[];
+  /** 지금 내가 몇 회차인지. 0 = 아직 안 정함 */
+  currentRound: number;
 }
 
 export default function TimelineClient({
@@ -54,7 +58,14 @@ export default function TimelineClient({
     return best;
   }, [rows]);
 
-  // 회차별 자세히 보기
+  // 지금 내 회차. 표에서 내 줄을 짚고, 총액을 받은 것/남은 것으로 가른다.
+  const myRound = plan?.currentRound ?? 0;
+  const split = useMemo(
+    () => (summary ? splitByCurrentRound(summary, myRound) : null),
+    [summary, myRound]
+  );
+
+  // 회차별 계산식 보기
   const [openRound, setOpenRound] = useState<number | null>(null);
   const lastRound = summary ? summary.inflow.length : 0;
 
@@ -136,6 +147,11 @@ export default function TimelineClient({
                       }`}
                     >
                       {p.name}
+                      {p.currentRound > 0 && (
+                        <span className="ml-1 text-[15px] font-bold opacity-80">
+                          · 내 {p.currentRound}회차
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -158,9 +174,36 @@ export default function TimelineClient({
                 </span>
                 <span className="text-headline-md font-headline-md text-on-surface font-bold">원</span>
               </div>
+              {/* 이 숫자가 몇 회차까지 받는 돈인지 밝힌다 */}
+              <p className="text-[15px] font-bold text-on-surface-variant leading-snug mt-0.5">
+                1~{PLAN_HORIZON}회차 정산을 모두 합한 금액입니다
+              </p>
               <p className="text-body-md font-body-md text-secondary mt-2 font-semibold">
                 원금 대비 {bigWon(summary.totalNet - summary.totalInvest)}원 순수익 예상
               </p>
+
+              {/* 내 회차를 정해뒀으면 여기까지 받은 돈과 앞으로 받을 돈을 가른다 */}
+              {split && (
+                <div className="mt-3 rounded-xl bg-surface-container-low px-3 py-2.5 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-[15px] font-bold text-on-surface-variant leading-tight">
+                      내 {split.round}회차까지 받음
+                    </div>
+                    <div className="text-[20px] font-extrabold text-on-surface num-font leading-tight">
+                      {bigWon(split.received)}원
+                    </div>
+                  </div>
+                  <Icon name="arrow_forward" size={20} className="text-outline shrink-0" />
+                  <div className="min-w-0 text-right">
+                    <div className="text-[15px] font-bold text-secondary leading-tight">
+                      앞으로 {split.roundsLeft}회차 더
+                    </div>
+                    <div className="text-[20px] font-extrabold text-secondary num-font leading-tight">
+                      {bigWon(split.remaining)}원
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* 무엇을 더한 값인지 나눠서 보여준다 */}
               {breakdown && (
@@ -263,20 +306,36 @@ export default function TimelineClient({
                         </tr>
                       </thead>
                       <tbody>
-                        {tableRows.map((t) => (
+                        {tableRows.map((t) => {
+                          const mine = t.round === myRound;
+                          return (
                           <tr
                             key={t.round}
                             onClick={() => setOpenRound(t.round)}
                             className={`border-t border-surface-container cursor-pointer active:bg-surface-container ${
-                              t.round === peakRound ? "bg-secondary/5" : ""
+                              mine
+                                ? "bg-primary-fixed/70 outline outline-2 -outline-offset-2 outline-primary"
+                                : t.round === peakRound
+                                  ? "bg-secondary/5"
+                                  : ""
                             }`}
                           >
+                            {/* 회차 칸은 가로로 밀어도 붙어 있으므로 배경이 불투명해야 한다 */}
                             <td
                               className={`sticky left-0 z-10 px-3 py-2.5 font-bold text-on-surface text-left ${
-                                t.round === peakRound ? "bg-[#eef7f2]" : "bg-surface-container-lowest"
+                                mine
+                                  ? "bg-primary-fixed"
+                                  : t.round === peakRound
+                                    ? "bg-[#eef7f2]"
+                                    : "bg-surface-container-lowest"
                               }`}
                             >
                               {t.round}회
+                              {mine && (
+                                <span className="block text-[13px] font-extrabold text-primary leading-none mt-0.5">
+                                  내 회차
+                                </span>
+                              )}
                             </td>
                             <td className="px-3 py-2.5 text-right text-on-surface-variant">
                               {t.newGoal > 0 ? `${shortKRW(t.newGoal)}` : "—"}
@@ -298,26 +357,36 @@ export default function TimelineClient({
                               {shortKRW(Math.abs(t.diff))}
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
                   <p className="px-space-md py-2.5 text-[15px] text-on-surface-variant font-semibold border-t border-surface-container">
                     옆으로 밀어서 보세요 · 금액은 억·만 단위로 줄였습니다 · 줄을 누르면 정확한 금액과 계산식이 나옵니다
+                    {myRound > 0 && ` · 짙게 칠한 줄이 지금 내 ${myRound}회차입니다`}
                   </p>
                 </>
               ) : (
                 rows.map((r) => {
                   const peak = r.round === peakRound;
+                  const mine = r.round === myRound;
                   return (
                     <button
                       key={r.round}
                       onClick={() => setOpenRound(r.round)}
                       className={`w-full min-h-[56px] px-space-md py-3 flex items-center justify-between gap-2 border-t border-surface-container text-left active:bg-surface-container ${
-                        peak ? "bg-secondary/5" : ""
+                        mine ? "bg-primary-fixed/70" : peak ? "bg-secondary/5" : ""
                       }`}
                     >
-                      <span className="text-body-lg font-body-lg text-on-surface font-bold w-14 shrink-0">{r.round}회</span>
+                      <span className="text-body-lg font-body-lg text-on-surface font-bold w-14 shrink-0">
+                        {r.round}회
+                        {mine && (
+                          <span className="block text-[13px] font-extrabold text-primary leading-none">
+                            내 회차
+                          </span>
+                        )}
+                      </span>
                       <span className={`flex-1 text-body-lg-bold font-body-lg-bold ${peak ? "text-secondary" : "text-on-surface"}`}>
                         {won(r.net)}원
                       </span>
@@ -341,21 +410,30 @@ export default function TimelineClient({
                   {rows.map((r) => {
                     const h = maxNet > 0 ? Math.max(6, (r.net / maxNet) * 100) : 6;
                     const peak = r.round === peakRound;
+                    const mine = r.round === myRound;
                     return (
                       <button
                         key={r.round}
                         onClick={() => setOpenRound(r.round)}
-                        aria-label={`${r.round}회차 자세히 보기`}
+                        aria-label={`${r.round}회차 계산식 보기`}
                         className="flex-1 min-w-[64px] flex flex-col items-center justify-end h-full active:opacity-70"
                       >
                         <span className={`text-label-sm font-bold mb-1 ${peak ? "text-secondary" : "text-on-surface-variant"}`}>
                           {shortKRW(r.net)}
                         </span>
                         <div
-                          className={`w-full rounded-t-lg ${peak ? "bg-secondary" : "bg-primary/80"}`}
+                          className={`w-full rounded-t-lg ${
+                            mine ? "bg-primary" : peak ? "bg-secondary" : "bg-primary/80"
+                          }`}
                           style={{ height: `${h}%` }}
                         />
-                        <span className="text-label-sm text-on-surface-variant mt-1">{r.round}</span>
+                        <span
+                          className={`text-label-sm mt-1 ${
+                            mine ? "text-primary font-extrabold" : "text-on-surface-variant"
+                          }`}
+                        >
+                          {mine ? `${r.round} 내` : r.round}
+                        </span>
                       </button>
                     );
                   })}
@@ -370,7 +448,7 @@ export default function TimelineClient({
                 className="mt-4 w-full min-h-[60px] rounded-2xl bg-primary text-on-primary text-[20px] font-extrabold flex items-center justify-center gap-2 shadow-md active:scale-[0.98]"
               >
                 <Icon name="tune" size={24} />
-                회차별 자세히 보기
+                회차별 계산식 보기
               </button>
               <p className="text-[16px] text-on-surface-variant font-semibold mt-2 text-center">
                 회차마다 어떤 아바타가 얼마를 주는지, 계산식까지 봅니다
@@ -396,6 +474,7 @@ export default function TimelineClient({
           capLabel={PLAN_META[plan.planType].capLabel}
           round={openRound}
           lastRound={lastRound}
+          currentRound={myRound}
           onRound={setOpenRound}
           onClose={() => setOpenRound(null)}
         />
