@@ -137,6 +137,16 @@ export interface RoundDetail {
   cumulativeSales: number; // 이 회차까지 새로 만든 아바타들의 목표매출 합
   cumulativeNet: number; // 1회차부터 이 회차까지 받은 실지급 합
   netMinusSales: number; // 누적수당 − 누적매출 (양수면 넣은 돈을 넘어섰다)
+
+  /** 다음 회차에 채워야 할 총매출. 마지막 회차 뒤에는 넣을 게 없으므로 null */
+  nextSales: number | null;
+  /**
+   * 다음 회차 준비금 = 다음 회차 총매출 − 이번 회차 수당.
+   * 양수면 그만큼 주머니에서 더 꺼내야 하고,
+   * 0 이하면 이번 수당으로 다 덮고 남는다(잉여금).
+   * planSummary().selfFundRound 는 이 값이 처음 0 이하가 되는 회차다.
+   */
+  nextPrep: number | null;
 }
 
 /**
@@ -168,7 +178,12 @@ export function cumulativeSales(goals: number[], R: number): number {
  * 정산 회차 R 에서 살아있는 아바타들이 각각 얼마를 주는지 분해한다.
  * 합계는 planSummary().inflow 의 같은 회차 값과 일치한다.
  */
-export function roundDetail(goals: number[], cap: number, R: number): RoundDetail {
+export function roundDetail(
+  goals: number[],
+  cap: number,
+  R: number,
+  horizon: number = PLAN_HORIZON
+): RoundDetail {
   const shares: AvatarShare[] = [];
   let gross = 0;
   let net = 0;
@@ -229,6 +244,10 @@ export function roundDetail(goals: number[], cap: number, R: number): RoundDetai
   const sales = roundSalesTotal(goals, R);
   const cumSales = cumulativeSales(goals, R);
 
+  // 다음 회차에 채워야 할 총매출을 이번 수당으로 덮을 수 있는지.
+  // 기준 회차가 끝나면 더 넣을 것이 없으므로 따지지 않는다.
+  const nextSales = R < horizon ? roundSalesTotal(goals, R + 1) : null;
+
   return {
     round: R,
     gross,
@@ -238,6 +257,8 @@ export function roundDetail(goals: number[], cap: number, R: number): RoundDetai
     cumulativeSales: cumSales,
     cumulativeNet: cumNet,
     netMinusSales: cumNet - cumSales,
+    nextSales,
+    nextPrep: nextSales === null ? null : nextSales - net,
   };
 }
 
@@ -253,6 +274,8 @@ export interface PlanTemplate {
 }
 
 export const PLAN_TEMPLATES: PlanTemplate[] = [
+  { label: "33 - 33", first: 330_000, rest: 330_000 },
+  { label: "55 - 55", first: 550_000, rest: 550_000 },
   { label: "110 - 33", first: 1_100_000, rest: 330_000 },
   { label: "110 - 55", first: 1_100_000, rest: 550_000 },
   { label: "110 - 110", first: 1_100_000, rest: 1_100_000 },

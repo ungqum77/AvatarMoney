@@ -11,6 +11,8 @@ import {
   PLAN_HORIZON,
   type PlanType,
 } from "@/lib/points";
+import { taxSummary, BASIC_DEDUCTION } from "@/lib/tax";
+import { downloadXlsx, safeFileName } from "@/lib/xlsx";
 import AdBanner from "@/components/AdBanner";
 import Icon from "@/components/Icon";
 import RoundDetailSheet from "@/components/RoundDetailSheet";
@@ -45,6 +47,13 @@ export default function TimelineClient({
     [summary]
   );
   const maxNet = useMemo(() => rows.reduce((m, r) => Math.max(m, r.net), 0), [rows]);
+
+  // 종합소득세 어림셈. 1회차를 1년으로 보고 회차마다 따로 매긴다.
+  // 세금은 세전 수입(산출 포인트)에 붙으므로 net 이 아니라 gross 를 넘긴다.
+  const tax = useMemo(
+    () => (summary ? taxSummary(summary.inflow.map((r) => r.gross)) : null),
+    [summary]
+  );
   // 수당이 0인 회차를 걸러낸 뒤 그 안에서 피크를 고른다.
   const peakRound = useMemo(() => {
     let best = 0;
@@ -104,9 +113,97 @@ export default function TimelineClient({
         cumSales: d.cumulativeSales,
         cumNet: d.cumulativeNet,
         diff: d.netMinusSales,
+        // 다음 회차에 채울 매출을 이번 수당으로 덮을 수 있는지.
+        // 양수면 더 꺼내야 할 준비금, 음수면 쓰고 남는 잉여금.
+        nextPrep: d.nextPrep,
+        // 1회차 = 1년. 그 해에 낼 세금과, 세금까지 다 뺀 실수령.
+        yearTax: tax ? tax.years[r.round - 1] : null,
       };
     });
-  }, [plan, summary, rows]);
+  }, [plan, summary, rows, tax]);
+
+  // 간단히 보기에서도 준비금을 보여주려고 회차로 찾을 수 있게 해둔다
+  const prepByRound = useMemo(
+    () => new Map(tableRows.map((t) => [t.round, t.nextPrep])),
+    [tableRows]
+  );
+
+  const [downloaded, setDownloaded] = useState(false);
+
+  /** 화면의 표를 그대로 엑셀 파일로 뽑는다 */
+  function exportXlsx() {
+    if (!plan || !summary) return;
+    const meta = PLAN_META[plan.planType];
+    const d = new Date();
+    const ymd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+      d.getDate()
+    ).padStart(2, "0")}`;
+
+    // 어느 플랜의 표인지 위에 적어둔다. 나중에 파일만 봐도 알 수 있게.
+    const head = [
+      ["회차수당표"],
+      ["플랜", plan.name],
+      ["유형", `${meta.label} · 극점 ${meta.capLabel}`],
+      ["내 현재 회차", myRound > 0 ? `${myRound}회차` : "안 정함"],
+      [`총 매출 누적 (1~${PLAN_HORIZON}회차)`, summary.totalInvest],
+      [`총 예상 수당 (실지급, 1~${PLAN_HORIZON}회차)`, summary.totalNet],
+      ["넣은 돈의", multiple(summary.totalInvest, summary.totalNet)],
+      ["뽑은 날짜", ymd],
+      ["금액 단위", "원 · 실지급은 세후(원천징수 3.3% 제외)"],
+      [
+        "종합소득세",
+        `어림셈 · 이 플랜 수당에만 매긴 세금입니다(다른 소득이 있으면 합산되어 더 나옴) · 1회차를 1년으로 보고 회차마다 따로 매김 · 필요경비 0원 · 본인 기본공제 ${
+          BASIC_DEDUCTION / 10_000
+        }만원만 · 실제 신고는 세무사와 확인하세요`,
+      ],
+      ["다음 회차 준비금", "다음 회차 총매출 − 이 회차 수당. 양수면 더 넣어야 할 돈, 음수면 쓰고 남는 돈"],
+      [],
+    ];
+    const header = [
+      "회차",
+      "내 회차",
+      "신규 아바타 목표매출",
+      "총매출",
+      "이 회차 수당",
+      "종합소득세(추정)",
+      "세금 뗀 실수령",
+      "다음 회차 준비금",
+      "준비/잉여",
+      "누적매출",
+      "누적수당",
+      "누적수당 − 누적매출",
+    ];
+    const body = tableRows.map((t) => [
+      t.round,
+      t.round === myRound ? "내 회차" : "",
+      t.newGoal || 0,
+      t.sales,
+      t.net,
+      t.yearTax ? t.yearTax.totalTax : "",
+      t.yearTax ? t.yearTax.takeHome : "",
+      t.nextPrep === null ? "" : t.nextPrep,
+      t.nextPrep === null
+        ? "마지막 회차"
+        : t.nextPrep > 0
+          ? "준비금 필요"
+          : t.nextPrep < 0
+            ? "잉여금"
+            : "딱 맞음",
+      t.cumSales,
+      t.cumNet,
+      t.diff,
+    ]);
+
+    downloadXlsx(`회차수당표_${safeFileName(plan.name)}_${ymd}`, {
+      name: "회차수당표",
+      rows: [...head, header, ...body],
+      cols: [7, 10, 20, 14, 14, 16, 16, 18, 13, 14, 14, 20],
+      boldRows: [0, head.length],
+    });
+
+    setDownloaded(true);
+    setTimeout(() => setDownloaded(false), 4000);
+  }
 
   return (
     <div className="flex flex-col w-full">
@@ -147,11 +244,11 @@ export default function TimelineClient({
                       }`}
                     >
                       {p.name}
-                      {p.currentRound > 0 && (
-                        <span className="ml-1 text-[15px] font-bold opacity-80">
-                          · 내 {p.currentRound}회차
-                        </span>
-                      )}
+                      <span className="ml-1 text-[15px] font-bold opacity-80">
+                        {p.currentRound > 0
+                          ? `· 현재 나의 회차 : ${p.currentRound}회차`
+                          : "· 현재회차 설정 안함"}
+                      </span>
                     </button>
                   );
                 })}
@@ -289,7 +386,18 @@ export default function TimelineClient({
                     <table className="border-collapse text-[16px] whitespace-nowrap">
                       <thead>
                         <tr className="bg-surface-container">
-                          {["회차", "신규 아바타", "총매출", "이 회차 수당", "누적매출", "누적수당", "누적수당−누적매출"].map(
+                          {[
+                            "회차",
+                            "신규 아바타",
+                            "총매출",
+                            "이 회차 수당",
+                            "종합소득세(추정)",
+                            "세금 뗀 실수령",
+                            "다음 회차 준비금",
+                            "누적매출",
+                            "누적수당",
+                            "누적수당−누적매출",
+                          ].map(
                             (h, i) => (
                               <th
                                 key={h}
@@ -314,7 +422,7 @@ export default function TimelineClient({
                             onClick={() => setOpenRound(t.round)}
                             className={`border-t border-surface-container cursor-pointer active:bg-surface-container ${
                               mine
-                                ? "bg-primary-fixed/70 outline outline-2 -outline-offset-2 outline-primary"
+                                ? "bg-primary-fixed/70 outline outline-2 outline-offset-[-2px] outline-primary"
                                 : t.round === peakRound
                                   ? "bg-secondary/5"
                                   : ""
@@ -344,6 +452,25 @@ export default function TimelineClient({
                             <td className="px-3 py-2.5 text-right font-bold text-secondary">
                               {shortKRW(t.net)}
                             </td>
+                            {/* 1회차 = 1년으로 본 그 해 세금과, 세금까지 뺀 실수령 */}
+                            <td className="px-3 py-2.5 text-right font-bold text-tertiary">
+                              {t.yearTax ? `−${shortKRW(t.yearTax.totalTax)}` : "—"}
+                            </td>
+                            <td className="px-3 py-2.5 text-right font-bold text-on-surface">
+                              {t.yearTax ? shortKRW(t.yearTax.takeHome) : "—"}
+                            </td>
+                            {/* 다음 회차에 더 넣어야 하는지(주황), 쓰고 남는지(초록) */}
+                            <td className="px-3 py-2.5 text-right font-bold">
+                              {t.nextPrep === null ? (
+                                <span className="text-on-surface-variant">—</span>
+                              ) : t.nextPrep > 0 ? (
+                                <span className="text-tertiary">준비 {shortKRW(t.nextPrep)}</span>
+                              ) : t.nextPrep < 0 ? (
+                                <span className="text-secondary">남음 {shortKRW(-t.nextPrep)}</span>
+                              ) : (
+                                <span className="text-secondary">딱 맞음</span>
+                              )}
+                            </td>
                             <td className="px-3 py-2.5 text-right text-on-surface-variant">
                               {shortKRW(t.cumSales)}
                             </td>
@@ -362,10 +489,51 @@ export default function TimelineClient({
                       </tbody>
                     </table>
                   </div>
-                  <p className="px-space-md py-2.5 text-[15px] text-on-surface-variant font-semibold border-t border-surface-container">
-                    옆으로 밀어서 보세요 · 금액은 억·만 단위로 줄였습니다 · 줄을 누르면 정확한 금액과 계산식이 나옵니다
-                    {myRound > 0 && ` · 짙게 칠한 줄이 지금 내 ${myRound}회차입니다`}
-                  </p>
+                  <div className="px-space-md py-2.5 border-t border-surface-container">
+                    <p className="text-[15px] text-on-surface-variant font-semibold">
+                      옆으로 밀어서 보세요 · 금액은 억·만 단위로 줄였습니다 · 줄을 누르면 정확한 금액과 계산식이 나옵니다
+                      {myRound > 0 && ` · 짙게 칠한 줄이 지금 내 ${myRound}회차입니다`}
+                    </p>
+                    {/* '준비금' 칸이 뭘 뜻하는지. 색만 봐도 알게 한다. */}
+                    <div className="mt-2 rounded-xl bg-surface-container-low px-3 py-2.5">
+                      <p className="text-[16px] font-bold text-on-surface leading-snug">
+                        다음 회차 준비금 = 다음 회차 총매출 − 이 회차 수당
+                      </p>
+                      <div className="mt-1.5 flex flex-col gap-1">
+                        <span className="text-[15px] font-semibold text-on-surface-variant leading-snug">
+                          <span className="font-extrabold text-tertiary">준비 ○○</span> — 수당만으론
+                          모자라 그만큼 주머니에서 더 꺼내야 합니다
+                        </span>
+                        <span className="text-[15px] font-semibold text-on-surface-variant leading-snug">
+                          <span className="font-extrabold text-secondary">남음 ○○</span> — 수당으로 다
+                          채우고 그만큼 남습니다(잉여금)
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 큰 카드를 뺀 대신, 세금 칸이 무엇을 가정한 값인지
+                        여기서 밝힌다. 가정 없이 숫자만 두면 안 된다. */}
+                    <div className="mt-2 rounded-xl bg-surface-container-low px-3 py-2.5">
+                      <p className="text-[16px] font-bold text-on-surface leading-snug">
+                        종합소득세(추정) · 세금 뗀 실수령
+                      </p>
+                      <p className="text-[15px] font-semibold text-on-surface-variant leading-snug mt-1">
+                        떼고 받는 3.3% 는 세금을 다 낸 것이 아닙니다. 다음 해 5월에 종합소득세로
+                        정산하면서 더 냅니다.
+                      </p>
+                      <p className="text-[15px] font-semibold text-on-surface-variant leading-snug mt-1">
+                        <span className="font-extrabold text-on-surface">
+                          이 플랜 수당에만 매긴 어림셈입니다.
+                        </span>{" "}
+                        1회차를 1년으로 보고 해마다 따로 매겼고, 필요경비 0원 · 본인 기본공제{" "}
+                        {BASIC_DEDUCTION / 10_000}만원만 넣었습니다. 월급 같은 다른 소득이 있으면
+                        합쳐져서 세금은 이보다 늘어납니다.
+                      </p>
+                      <p className="text-[15px] font-bold text-tertiary leading-snug mt-1">
+                        실제 신고는 사람마다 다릅니다. 신고는 세무사와 확인하세요.
+                      </p>
+                    </div>
+                  </div>
                 </>
               ) : (
                 rows.map((r) => {
@@ -387,8 +555,31 @@ export default function TimelineClient({
                           </span>
                         )}
                       </span>
-                      <span className={`flex-1 text-body-lg-bold font-body-lg-bold ${peak ? "text-secondary" : "text-on-surface"}`}>
-                        {won(r.net)}원
+                      <span className="flex-1 min-w-0">
+                        <span
+                          className={`block text-body-lg-bold font-body-lg-bold ${
+                            peak ? "text-secondary" : "text-on-surface"
+                          }`}
+                        >
+                          {won(r.net)}원
+                        </span>
+                        {(() => {
+                          const prep = prepByRound.get(r.round);
+                          if (prep === null || prep === undefined) return null;
+                          return (
+                            <span
+                              className={`block text-[14px] font-bold leading-tight ${
+                                prep > 0 ? "text-tertiary" : "text-secondary"
+                              }`}
+                            >
+                              {prep > 0
+                                ? `다음 회차 준비 ${shortKRW(prep)}`
+                                : prep < 0
+                                  ? `다음 회차 채우고 ${shortKRW(-prep)} 남음`
+                                  : "다음 회차 딱 맞음"}
+                            </span>
+                          );
+                        })()}
                       </span>
                       <span className="text-body-md font-body-md text-on-surface-variant">{shortKRW(r.cumulative)}</span>
                       <Icon name="arrow_forward" size={20} className="text-outline" />
@@ -397,6 +588,22 @@ export default function TimelineClient({
                 })
               )}
             </section>
+
+            {/* 엑셀로 뽑기 — 표를 그대로 파일 하나로 */}
+            <div>
+              <button
+                onClick={exportXlsx}
+                className="w-full min-h-[60px] rounded-2xl bg-surface-container-lowest border-2 border-primary text-primary text-[19px] font-extrabold flex items-center justify-center gap-2 shadow-sm active:scale-[0.98]"
+              >
+                <Icon name="download" size={24} />
+                엑셀로 내려받기
+              </button>
+              <p className="text-[15px] font-semibold text-on-surface-variant mt-1.5 text-center leading-snug">
+                {downloaded
+                  ? "내려받았습니다 ✓ 휴대폰은 '파일' 앱에 저장됩니다"
+                  : "위 표를 엑셀 파일(.xlsx)로 저장합니다 · 금액은 줄이지 않고 원 단위 그대로"}
+              </p>
+            </div>
 
             {/* 바 차트 */}
             <section className="p-space-lg rounded-2xl bg-surface-container-lowest shadow-md">

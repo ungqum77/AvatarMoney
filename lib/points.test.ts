@@ -494,8 +494,10 @@ describe("플랜 템플릿", () => {
     }
   });
 
-  it("사장님이 정한 열두 가지가 1회차 금액 오름차순으로 있다", () => {
+  it("사장님이 정한 열네 가지가 1회차 금액 오름차순으로 있다", () => {
     expect(PLAN_TEMPLATES.map((t) => t.label)).toEqual([
+      "33 - 33",
+      "55 - 55",
       "110 - 33",
       "110 - 55",
       "110 - 110",
@@ -631,5 +633,62 @@ describe("현재 회차", () => {
   it("18회차면 남은 돈이 없다", () => {
     const sp = splitByCurrentRound(s, 18)!;
     expect([sp.received, sp.remaining, sp.roundsLeft]).toEqual([s.totalNet, 0, 0]);
+  });
+});
+
+// ============================================================================
+// 다음 회차 준비금 — 다음 회차에 채울 매출을 이번 수당으로 덮을 수 있는가
+// ============================================================================
+describe("다음 회차 준비금", () => {
+  const cap = CAP.won33;
+  const goals = Array.from({ length: 18 }, () => 330_000);
+
+  it("준비금 = 다음 회차 총매출 − 이번 회차 수당", () => {
+    for (let R = 1; R < PLAN_HORIZON; R++) {
+      const d = roundDetail(goals, cap, R);
+      expect([R, d.nextSales, d.nextPrep]).toEqual([
+        R,
+        roundSalesTotal(goals, R + 1),
+        roundSalesTotal(goals, R + 1) - d.net,
+      ]);
+    }
+  });
+
+  it("마지막 회차 뒤에는 넣을 것이 없어 따지지 않는다", () => {
+    const d = roundDetail(goals, cap, PLAN_HORIZON);
+    expect([d.nextSales, d.nextPrep]).toEqual([null, null]);
+  });
+
+  it("초반에는 주머니에서 더 꺼내야 한다(준비금 양수)", () => {
+    const d = roundDetail(goals, cap, 1);
+    // 1회차 수당 92,832 < 2회차 총매출 660,000
+    expect([d.net, d.nextSales, d.nextPrep! > 0]).toEqual([92_832, 660_000, true]);
+  });
+
+  it("준비금이 처음 0 이하가 되는 회차 = 자가충당 회차", () => {
+    const s = planSummary(goals, cap);
+    let first: number | null = null;
+    for (let R = 1; R < PLAN_HORIZON; R++) {
+      const d = roundDetail(goals, cap, R);
+      if (d.nextSales! > 0 && d.nextPrep! <= 0) {
+        first = R;
+        break;
+      }
+    }
+    expect(first).toBe(s.selfFundRound);
+  });
+
+  it("아바타를 안 만드는 회차가 섞여도 자가충당 회차와 어긋나지 않는다", () => {
+    const mixed = [1_100_000, 0, 330_000, 0, 0, 550_000, ...Array(12).fill(330_000)];
+    const s = planSummary(mixed, cap);
+    let first: number | null = null;
+    for (let R = 1; R < PLAN_HORIZON; R++) {
+      const d = roundDetail(mixed, cap, R);
+      if (d.nextSales! > 0 && d.nextPrep! <= 0) {
+        first = R;
+        break;
+      }
+    }
+    expect(first).toBe(s.selfFundRound);
   });
 });

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { manwon, multiple, bigWon } from "@/lib/format";
+import { manwon, multiple, bigWon, suggestPlanName } from "@/lib/format";
 import type { PlanType } from "@/lib/points";
 import { PLAN_META, PLAN_HORIZON } from "@/lib/points";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -20,12 +20,16 @@ export interface PlanCardData {
   totalInvest: number;
   totalNet: number;
   roi: number;
+  /** 만든 때. 오늘 몇 번째로 만드는 플랜인지 세는 데 쓴다 */
+  createdAt: number;
   /** 지금 내가 몇 회차인지. 0 = 아직 안 정함 */
   currentRound: number;
   /** currentRound 회차까지 받은 실지급 (0이면 미설정) */
   received: number;
   /** 그 다음 회차부터 18회차까지 받을 실지급 */
   remaining: number;
+  /** 이 수당에 붙는 종합소득세 어림셈 (소득세+지방소득세) */
+  taxTotal: number;
 }
 
 export default function PlanListClient({
@@ -152,7 +156,7 @@ export default function PlanListClient({
           <div className="flex flex-col gap-space-md">
             {cards.map((c) => (
               <article key={c.id} className="rounded-2xl bg-surface-container-lowest p-space-md shadow-sm flex flex-col">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2 gap-y-1.5">
                   <span className="px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed-variant text-label-sm font-bold">
                     {PLAN_META[c.planType].label}
                   </span>
@@ -162,11 +166,11 @@ export default function PlanListClient({
                   {/* 이 플랜에서 내가 지금 몇 회차인지 */}
                   {c.currentRound > 0 ? (
                     <span className="px-2.5 py-1 rounded-full bg-primary text-on-primary text-label-sm font-bold">
-                      내 {c.currentRound}회차
+                      현재 나의 회차 : {c.currentRound}회차
                     </span>
                   ) : (
                     <span className="px-2.5 py-1 rounded-full bg-surface-container text-on-surface-variant text-label-sm font-semibold">
-                      회차 미설정
+                      현재회차 설정 안함
                     </span>
                   )}
                 </div>
@@ -187,11 +191,19 @@ export default function PlanListClient({
                     <span className="text-label-sm text-on-surface-variant">
                       총 예상 수당(실지급) · 1~{PLAN_HORIZON}회차 합계
                     </span>
-                    <div className="flex items-baseline gap-1 mt-0.5">
-                      <span className="text-display-currency-mobile font-display-currency-mobile text-primary font-extrabold">
-                        {bigWon(c.totalNet)}
+                    <div className="flex items-baseline justify-between gap-2 mt-0.5">
+                      <div className="flex items-baseline gap-1 min-w-0">
+                        <span className="text-display-currency-mobile font-display-currency-mobile text-primary font-extrabold">
+                          {bigWon(c.totalNet)}
+                        </span>
+                        <span className="text-headline-md font-headline-md text-primary font-bold">원</span>
+                      </div>
+                      {/* 3.3% 로 끝나는 게 아니라는 것만 옅게 귀띔한다.
+                          가정과 자세한 내역은 회차수당표에 있다. */}
+                      <span className="text-label-sm font-semibold text-on-surface-variant/70 text-right leading-tight shrink-0">
+                        추정 세금
+                        <span className="block">−{bigWon(c.taxTotal)}원</span>
                       </span>
-                      <span className="text-headline-md font-headline-md text-primary font-bold">원</span>
                     </div>
                   </div>
 
@@ -256,22 +268,34 @@ export default function PlanListClient({
         <AdBanner />
       </main>
 
-      {/* 새 플랜 모달 */}
-      {showNew && <NewPlanModal busy={busy} onClose={() => setShowNew(false)} onCreate={createPlan} />}
+      {/* 새 플랜 모달. 열릴 때마다 오늘 날짜로 기본 이름을 새로 짓는다. */}
+      {showNew && (
+        <NewPlanModal
+          busy={busy}
+          defaultName={suggestPlanName(userName, cards)}
+          onClose={() => setShowNew(false)}
+          onCreate={createPlan}
+        />
+      )}
     </div>
   );
 }
 
 function NewPlanModal({
   busy,
+  defaultName,
   onClose,
   onCreate,
 }: {
   busy: boolean;
+  /** '홍길동 9월23일 1번' 꼴로 미리 지어둔 이름 */
+  defaultName: string;
   onClose: () => void;
   onCreate: (name: string, type: PlanType) => void;
 }) {
-  const [name, setName] = useState("");
+  // 빈 칸으로 두면 '새 플랜' 만 잔뜩 쌓여 목록에서 못 알아본다.
+  // 누가 언제 만든 몇 번째인지 미리 적어두고, 고치고 싶으면 고치게 한다.
+  const [name, setName] = useState(defaultName);
   const [type, setType] = useState<PlanType>("won33");
   return (
     // z-[60]: 하단 탭바(z-50)보다 위에 와야 한다.
@@ -294,9 +318,24 @@ function NewPlanModal({
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="예: 2025 상반기 플랜"
+            // 기본 이름이 들어있으므로, 누르면 통째로 잡아서 바로 고쳐 쓸 수 있게 한다
+            onFocus={(e) => e.target.select()}
+            placeholder={defaultName}
             className="w-full h-[56px] px-4 text-body-lg font-body-lg text-on-surface bg-surface-container-lowest rounded-xl shadow-sm focus:outline-none focus:bg-surface-container-high"
           />
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-label-sm text-on-surface-variant">
+              그대로 두셔도 됩니다 · 겹치지 않게 번호가 붙습니다
+            </span>
+            {name !== defaultName && (
+              <button
+                onClick={() => setName(defaultName)}
+                className="min-h-[44px] px-3 rounded-lg bg-surface-container text-primary text-label-sm font-bold shrink-0"
+              >
+                자동 이름으로
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col gap-space-xs">
@@ -322,7 +361,7 @@ function NewPlanModal({
         </div>
 
         <button
-          onClick={() => onCreate(name.trim() || "새 플랜", type)}
+          onClick={() => onCreate(name.trim() || defaultName, type)}
           disabled={busy}
           className="w-full min-h-[60px] rounded-2xl bg-primary text-on-primary text-headline-sm font-headline-sm font-bold shadow-lg active:scale-[0.98] disabled:opacity-60"
         >

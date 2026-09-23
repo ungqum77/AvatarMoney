@@ -105,7 +105,9 @@ export default function RoundDetailSheet({
                     : "bg-surface-container text-on-surface-variant"
                 }`}
               >
-                {currentRound === round ? "지금 내 회차" : `내 회차는 ${currentRound}회차`}
+                {currentRound === round
+                  ? "지금 내 회차"
+                  : `현재 나의 회차 : ${currentRound}회차`}
               </div>
             )}
           </div>
