@@ -138,6 +138,12 @@ export interface RoundDetail {
   cumulativeNet: number; // 1회차부터 이 회차까지 받은 실지급 합
   netMinusSales: number; // 누적수당 − 누적매출 (양수면 넣은 돈을 넘어섰다)
 
+  // 내 돈(자기부담금) — fundingPlan() 과 같은 계산
+  pocket: number; // 이 회차에 주머니에서 새로 꺼낸 돈
+  carry: number; // 이 회차를 시작할 때 남아 있던 잉여금
+  leftover: number; // 이 회차를 마친 뒤 남은 돈
+  cumulativePocket: number; // 1회차부터 이 회차까지 꺼낸 내 돈 합계
+
   /** 다음 회차에 채워야 할 총매출. 마지막 회차 뒤에는 넣을 게 없으므로 null */
   nextSales: number | null;
   /**
@@ -172,6 +178,86 @@ export function cumulativeSales(goals: number[], R: number): number {
   let sum = 0;
   for (let r = 1; r <= R; r++) sum += roundSalesTotal(goals, r);
   return sum;
+}
+
+// ============================================================================
+// 내 돈(자기부담금) — 수당으로 안 덮이는 만큼만 주머니에서 꺼낸다
+// ============================================================================
+
+/** 한 회차의 돈 흐름. '내 돈'이 언제 얼마나 들어가는지만 본다. */
+export interface FundingRow {
+  round: number; // 회차 R
+  sales: number; // 이 회차에 넣어야 할 총매출
+  carry: number; // 회차를 시작할 때 손에 남아 있던 수당(지난 회차까지의 잉여금)
+  pocket: number; // ★ 이 회차에 새로 주머니에서 꺼내야 하는 내 돈
+  net: number; // 이 회차에 받는 실지급 수당
+  leftover: number; // 매출을 넣고 수당을 받은 뒤 손에 남은 돈(다음 회차로 넘어감)
+  cumulativePocket: number; // 1회차부터 이 회차까지 꺼낸 내 돈 합계
+}
+
+/** 플랜 전체의 '내 돈' 계획 */
+export interface FundingPlan {
+  rows: FundingRow[];
+  /** ★ 총 필요 금액 — 1회차부터 자립할 때까지 주머니에서 꺼내는 돈의 합 */
+  totalPocket: number;
+  /** 마지막으로 내 돈을 꺼내는 회차. 한 번도 안 꺼내면 null */
+  lastPocketRound: number | null;
+  /**
+   * 자립 회차 — 이 회차부터는 내 돈을 한 푼도 안 보태고
+   * 받은 수당(+ 남은 잉여금)만으로 총매출을 계속 채울 수 있다.
+   * 기준 회차 끝까지 내 돈이 들어가면 null.
+   */
+  selfSustainRound: number | null;
+}
+
+/**
+ * 회차마다 '수당으로 못 덮는 만큼만' 내 돈을 꺼낸다고 보고 계산한다.
+ *
+ * 한 회차의 순서: (1) 총매출을 넣는다 → (2) 그 회차 수당을 받는다.
+ * 그러니 R회차에 넣는 돈은 R−1회차까지 받은 수당으로 낸다. 이것은
+ * nextPrep(다음 회차 총매출 − 이 회차 수당)과 같은 시점 약속이다.
+ *
+ * 쓰고 남은 돈(잉여금)은 사라지지 않고 다음 회차로 넘어간다. 그래서
+ * 회차마다의 부족분을 그냥 더한 값보다 실제 필요한 내 돈은 적을 수 있다.
+ */
+export function fundingPlan(
+  goals: number[],
+  cap: number,
+  horizon: number = PLAN_HORIZON
+): FundingPlan {
+  const rows: FundingRow[] = [];
+  let balance = 0; // 손에 남은 돈
+  let cumPocket = 0;
+  let lastPocketRound: number | null = null;
+
+  for (let R = 1; R <= horizon; R++) {
+    const sales = roundSalesTotal(goals, R);
+    const carry = balance;
+    // 남은 돈으로 못 채우는 만큼만 새로 꺼낸다
+    const pocket = Math.max(0, sales - carry);
+    if (pocket > 0) {
+      cumPocket += pocket;
+      lastPocketRound = R;
+    }
+    balance = carry + pocket - sales; // = max(0, carry − sales)
+
+    let net = 0;
+    for (let c = 1; c <= Math.min(R, goals.length); c++) {
+      const k = R - c + 1;
+      if (k >= 1 && k <= MAX_AGE) net += netPoint(avatarPoint(goals[c - 1] || 0, k, cap));
+    }
+    balance += net;
+
+    rows.push({ round: R, sales, carry, pocket, net, leftover: balance, cumulativePocket: cumPocket });
+  }
+
+  return {
+    rows,
+    totalPocket: cumPocket,
+    lastPocketRound,
+    selfSustainRound:
+      lastPocketRound !== null && lastPocketRound < horizon ? lastPocketRound + 1 : null,
+  };
 }
 
 /**
@@ -248,6 +334,9 @@ export function roundDetail(
   // 기준 회차가 끝나면 더 넣을 것이 없으므로 따지지 않는다.
   const nextSales = R < horizon ? roundSalesTotal(goals, R + 1) : null;
 
+  // 내 돈은 1회차부터 굴려온 잉여금에 달려 있으므로 R까지 다시 훑는다.
+  const fund = fundingPlan(goals, cap, R).rows[R - 1];
+
   return {
     round: R,
     gross,
@@ -257,6 +346,10 @@ export function roundDetail(
     cumulativeSales: cumSales,
     cumulativeNet: cumNet,
     netMinusSales: cumNet - cumSales,
+    pocket: fund.pocket,
+    carry: fund.carry,
+    leftover: fund.leftover,
+    cumulativePocket: fund.cumulativePocket,
     nextSales,
     nextPrep: nextSales === null ? null : nextSales - net,
   };
@@ -318,6 +411,13 @@ export interface PlanSummary {
    * 마지막 회차 뒤에는 넣을 게 없으므로 그 전까지만 본다. 없으면 null.
    */
   selfFundRound: number | null;
+
+  /**
+   * 내 돈(자기부담금) 계획 — 1회차부터 자립할 때까지 실제로
+   * 주머니에서 꺼내야 하는 금액. totalInvest(총매출 누계)와 다르다.
+   * 총매출의 상당 부분은 받은 수당으로 되넣는 돈이다.
+   */
+  funding: FundingPlan;
 }
 
 /**
@@ -399,6 +499,7 @@ export function planSummary(goals: number[], cap: number): PlanSummary {
     peakRound,
     breakEvenRound,
     selfFundRound,
+    funding: fundingPlan(goals, cap, lastR),
   };
 }
 

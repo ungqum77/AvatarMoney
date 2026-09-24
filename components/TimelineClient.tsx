@@ -109,6 +109,9 @@ export default function TimelineClient({
         round: r.round,
         newGoal: r.round <= plan.rounds.length ? plan.rounds[r.round - 1] || 0 : 0,
         sales: d.sales,
+        // 이 회차에 실제로 주머니에서 꺼낸 돈과 그 누계
+        pocket: d.pocket,
+        cumPocket: d.cumulativePocket,
         net: d.net,
         cumSales: d.cumulativeSales,
         cumNet: d.cumulativeNet,
@@ -125,6 +128,12 @@ export default function TimelineClient({
   // 간단히 보기에서도 준비금을 보여주려고 회차로 찾을 수 있게 해둔다
   const prepByRound = useMemo(
     () => new Map(tableRows.map((t) => [t.round, t.nextPrep])),
+    [tableRows]
+  );
+
+  // 간단히 보기에서도 그 회차에 꺼낸 내 돈을 보여준다
+  const pocketByRound = useMemo(
+    () => new Map(tableRows.map((t) => [t.round, t.pocket])),
     [tableRows]
   );
 
@@ -157,6 +166,21 @@ export default function TimelineClient({
         }만원만 · 실제 신고는 세무사와 확인하세요`,
       ],
       ["다음 회차 준비금", "다음 회차 총매출 − 이 회차 수당. 양수면 더 넣어야 할 돈, 음수면 쓰고 남는 돈"],
+      ["내 돈 총 필요액", summary.funding.totalPocket],
+      [
+        "",
+        summary.funding.lastPocketRound
+          ? `1~${summary.funding.lastPocketRound}회차까지 주머니에서 꺼내는 돈의 합${
+              summary.funding.selfSustainRound
+                ? ` · ${summary.funding.selfSustainRound}회차부터는 수당만으로 채워집니다`
+                : ""
+            }`
+          : "넣을 금액이 없습니다",
+      ],
+      [
+        "내 돈",
+        "그 회차 총매출 − 지난 회차까지 쓰고 남은 수당. 모자란 만큼만 새로 꺼냅니다(남은 돈은 다음 회차로 넘어감)",
+      ],
       [],
     ];
     const header = [
@@ -164,12 +188,14 @@ export default function TimelineClient({
       "내 회차",
       "신규 아바타 목표매출",
       "총매출",
+      "내 돈",
       "이 회차 수당",
       "종합소득세(추정)",
       "세금 뗀 실수령",
       "다음 회차 준비금",
       "준비/잉여",
       "누적매출",
+      "누적 내 돈",
       "누적수당",
       "누적수당 − 누적매출",
     ];
@@ -178,6 +204,7 @@ export default function TimelineClient({
       t.round === myRound ? "내 회차" : "",
       t.newGoal || 0,
       t.sales,
+      t.pocket,
       t.net,
       t.yearTax ? t.yearTax.totalTax : "",
       t.yearTax ? t.yearTax.takeHome : "",
@@ -190,6 +217,7 @@ export default function TimelineClient({
             ? "잉여금"
             : "딱 맞음",
       t.cumSales,
+      t.cumPocket,
       t.cumNet,
       t.diff,
     ]);
@@ -197,7 +225,7 @@ export default function TimelineClient({
     downloadXlsx(`회차수당표_${safeFileName(plan.name)}_${ymd}`, {
       name: "회차수당표",
       rows: [...head, header, ...body],
-      cols: [7, 10, 20, 14, 14, 16, 16, 18, 13, 14, 14, 20],
+      cols: [7, 10, 20, 14, 14, 14, 16, 16, 18, 13, 14, 14, 14, 20],
       boldRows: [0, head.length],
     });
 
@@ -345,6 +373,43 @@ export default function TimelineClient({
               )}
             </section>
 
+            {/* ★ 진짜 내 주머니에서 나가는 돈.
+                '총 투입금'은 매 회차 다시 채우는 금액을 전부 더한 값이라
+                준비해야 할 돈처럼 읽히지만, 대부분은 받은 수당으로 되넣는다. */}
+            <section className="p-space-lg rounded-2xl bg-surface-container-lowest shadow-md border-t-4 border-tertiary">
+              <div className="flex items-center gap-1.5">
+                <Icon name="savings" size={20} className="text-tertiary" />
+                <span className="text-label-md font-semibold text-on-surface">
+                  내 돈은 총 얼마 드나요?
+                </span>
+              </div>
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className="text-display-currency-mobile font-display-currency-mobile text-tertiary font-extrabold num-font">
+                  {bigWon(summary.funding.totalPocket)}
+                </span>
+                <span className="text-headline-md font-headline-md text-tertiary font-bold">원</span>
+              </div>
+              {summary.funding.lastPocketRound ? (
+                <p className="text-[16px] font-bold text-on-surface leading-snug mt-1">
+                  1회차부터 {summary.funding.lastPocketRound}회차까지 넣는 내 돈 전부입니다
+                </p>
+              ) : (
+                <p className="text-[16px] font-bold text-on-surface leading-snug mt-1">
+                  아직 넣을 금액이 없습니다
+                </p>
+              )}
+              {summary.funding.selfSustainRound && (
+                <p className="text-[16px] font-bold text-secondary leading-snug mt-0.5">
+                  {summary.funding.selfSustainRound}회차부터는 받은 수당만으로 채워집니다 · 내 돈 0원
+                </p>
+              )}
+              <p className="text-[15px] font-semibold text-on-surface-variant leading-snug mt-2 pt-2 border-t border-surface-container">
+                총 투입금 {bigWon(summary.totalInvest)}원 가운데{" "}
+                {bigWon(summary.totalInvest - summary.funding.totalPocket)}원은 받은 수당으로 다시
+                넣는 돈입니다
+              </p>
+            </section>
+
             <div className="grid grid-cols-2 gap-space-md">
               <div className="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm">
                 <span className="text-label-md font-semibold text-on-surface-variant">총 투입금</span>
@@ -390,11 +455,13 @@ export default function TimelineClient({
                             "회차",
                             "신규 아바타",
                             "총매출",
+                            "내 돈",
                             "이 회차 수당",
                             "종합소득세(추정)",
                             "세금 뗀 실수령",
                             "다음 회차 준비금",
                             "누적매출",
+                            "누적 내 돈",
                             "누적수당",
                             "누적수당−누적매출",
                           ].map(
@@ -449,6 +516,14 @@ export default function TimelineClient({
                               {t.newGoal > 0 ? `${shortKRW(t.newGoal)}` : "—"}
                             </td>
                             <td className="px-3 py-2.5 text-right text-on-surface">{shortKRW(t.sales)}</td>
+                            {/* 그 회차에 주머니에서 새로 꺼내는 돈. 0이면 수당으로 다 덮었다. */}
+                            <td className="px-3 py-2.5 text-right font-bold">
+                              {t.pocket > 0 ? (
+                                <span className="text-tertiary">{shortKRW(t.pocket)}</span>
+                              ) : (
+                                <span className="text-secondary">0</span>
+                              )}
+                            </td>
                             <td className="px-3 py-2.5 text-right font-bold text-secondary">
                               {shortKRW(t.net)}
                             </td>
@@ -474,6 +549,9 @@ export default function TimelineClient({
                             <td className="px-3 py-2.5 text-right text-on-surface-variant">
                               {shortKRW(t.cumSales)}
                             </td>
+                            <td className="px-3 py-2.5 text-right font-bold text-tertiary">
+                              {shortKRW(t.cumPocket)}
+                            </td>
                             <td className="px-3 py-2.5 text-right text-on-surface">{shortKRW(t.cumNet)}</td>
                             <td
                               className={`px-3 py-2.5 text-right font-bold ${
@@ -494,6 +572,20 @@ export default function TimelineClient({
                       옆으로 밀어서 보세요 · 금액은 억·만 단위로 줄였습니다 · 줄을 누르면 정확한 금액과 계산식이 나옵니다
                       {myRound > 0 && ` · 짙게 칠한 줄이 지금 내 ${myRound}회차입니다`}
                     </p>
+                    {/* '내 돈' 칸이 뭘 뜻하는지. 총매출과 헷갈리면 안 된다. */}
+                    <div className="mt-2 rounded-xl bg-surface-container-low px-3 py-2.5">
+                      <p className="text-[16px] font-bold text-on-surface leading-snug">
+                        내 돈 = 그 회차 총매출 − 지난 회차까지 쓰고 남은 수당
+                      </p>
+                      <p className="text-[15px] font-semibold text-on-surface-variant leading-snug mt-1">
+                        모자란 만큼만 주머니에서 꺼냅니다. 쓰고 남은 수당은 다음 회차로 넘어갑니다.
+                        {summary.funding.lastPocketRound !== null &&
+                          ` 1~${summary.funding.lastPocketRound}회차 내 돈을 다 더하면 ${bigWon(
+                            summary.funding.totalPocket
+                          )}원입니다.`}
+                      </p>
+                    </div>
+
                     {/* '준비금' 칸이 뭘 뜻하는지. 색만 봐도 알게 한다. */}
                     <div className="mt-2 rounded-xl bg-surface-container-low px-3 py-2.5">
                       <p className="text-[16px] font-bold text-on-surface leading-snug">
@@ -563,6 +655,20 @@ export default function TimelineClient({
                         >
                           {won(r.net)}원
                         </span>
+                        {(() => {
+                          // 그 회차에 주머니에서 꺼낸 돈. 0이면 수당으로 다 덮었다.
+                          const pocket = pocketByRound.get(r.round);
+                          if (pocket === undefined) return null;
+                          return (
+                            <span
+                              className={`block text-[14px] font-bold leading-tight ${
+                                pocket > 0 ? "text-tertiary" : "text-secondary"
+                              }`}
+                            >
+                              {pocket > 0 ? `내 돈 ${shortKRW(pocket)}원` : "내 돈 0원"}
+                            </span>
+                          );
+                        })()}
                         {(() => {
                           const prep = prepByRound.get(r.round);
                           if (prep === null || prep === undefined) return null;

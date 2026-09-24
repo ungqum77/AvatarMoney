@@ -235,6 +235,40 @@ export default function RoundDetailSheet({
             </span>
           </div>
 
+          {/* 실제로 주머니에서 꺼낸 돈. 누적매출은 매 회차 다시 채우는 돈까지
+              전부 더한 값이라, 준비한 내 돈과는 다르다. */}
+          <div className="px-space-md py-3 flex items-center justify-between gap-2 border-t-2 border-surface-container">
+            <span className="text-[19px] font-bold text-on-surface">
+              누적 내 돈
+              <span className="text-[16px] font-semibold text-on-surface-variant ml-1.5">
+                주머니에서 꺼낸 돈
+              </span>
+            </span>
+            <span className="text-[21px] font-extrabold text-tertiary num-font">
+              {won(detail.cumulativePocket)}원
+            </span>
+          </div>
+
+          <div className="px-space-md py-3 border-t-2 border-surface-container">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[19px] font-bold text-on-surface">이 회차에 꺼낸 내 돈</span>
+              <span
+                className={`text-[21px] font-extrabold num-font ${
+                  detail.pocket > 0 ? "text-tertiary" : "text-secondary"
+                }`}
+              >
+                {won(detail.pocket)}원
+              </span>
+            </div>
+            <p className="text-[16px] font-semibold text-on-surface-variant leading-snug mt-1">
+              {detail.pocket > 0
+                ? `총매출 ${won(detail.sales)}원 − 지난 회차까지 남은 돈 ${won(detail.carry)}원`
+                : `지난 회차까지 남은 돈 ${won(detail.carry)}원으로 총매출 ${won(
+                    detail.sales
+                  )}원을 다 채웠습니다`}
+            </p>
+          </div>
+
           {/* 누적수당 − 누적매출. 양수면 넣은 돈을 넘어선 것이라 좋은 쪽이다. */}
           <div
             className={`px-space-md py-3.5 border-t-2 border-surface-container ${

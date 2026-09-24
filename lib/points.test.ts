@@ -7,6 +7,7 @@ import {
   planSummary,
   cumulativeSales,
   roundSalesTotal,
+  fundingPlan,
   avatarNetLifetime,
   avatarNetInPlan,
   PLAN_HORIZON,
@@ -381,6 +382,96 @@ describe("자가충당 회차", () => {
       cap
     ).selfFundRound;
     expect(rising === null || rising >= flat).toBe(true);
+  });
+});
+
+// ============================================================================
+// 내 돈(자기부담금) — 총 필요 금액
+// ============================================================================
+describe("내 돈 총 필요액", () => {
+  const cap = CAP.won33;
+
+  it("1회차는 받은 수당이 없으므로 총매출 전부가 내 돈이다", () => {
+    const g = [1_100_000];
+    const fp = fundingPlan(g, cap);
+    expect(fp.rows[0].carry).toBe(0);
+    expect(fp.rows[0].pocket).toBe(1_100_000);
+  });
+
+  it("내 돈 = 그 회차 총매출 − 지난 회차까지 남은 돈 (모자란 만큼만)", () => {
+    const g = Array.from({ length: 18 }, () => 330_000);
+    const fp = fundingPlan(g, cap);
+    for (const r of fp.rows) {
+      expect(r.pocket).toBe(Math.max(0, r.sales - r.carry));
+      expect(r.leftover).toBe(r.carry + r.pocket - r.sales + r.net);
+      expect(r.leftover).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("총 필요 금액은 회차별 내 돈의 합이고, 총매출 누계보다 작거나 같다", () => {
+    const g = Array.from({ length: 18 }, () => 330_000);
+    const s = planSummary(g, cap);
+    const sum = s.funding.rows.reduce((a, r) => a + r.pocket, 0);
+    expect(s.funding.totalPocket).toBe(sum);
+    expect(s.funding.totalPocket).toBeLessThanOrEqual(s.totalInvest);
+    // 마지막 행의 누적 내 돈 = 총 필요 금액
+    expect(s.funding.rows[PLAN_HORIZON - 1].cumulativePocket).toBe(s.funding.totalPocket);
+  });
+
+  it("자립 회차부터는 내 돈이 한 푼도 안 들어간다", () => {
+    const g = Array.from({ length: 18 }, () => 330_000);
+    const fp = fundingPlan(g, cap);
+    const ss = fp.selfSustainRound!;
+    expect(ss).not.toBeNull();
+    for (const r of fp.rows) {
+      if (r.round >= ss) expect(r.pocket).toBe(0);
+    }
+    expect(fp.rows[ss - 2].pocket).toBeGreaterThan(0); // 바로 앞 회차까지는 넣었다
+    expect(fp.lastPocketRound).toBe(ss - 1);
+  });
+
+  it("자립 전까지 꺼낸 돈이 총 필요 금액의 전부다", () => {
+    const g = Array.from({ length: 18 }, () => 550_000);
+    const fp = fundingPlan(g, cap);
+    const upto = fp.rows
+      .filter((r) => r.round <= (fp.lastPocketRound ?? 0))
+      .reduce((a, r) => a + r.pocket, 0);
+    expect(upto).toBe(fp.totalPocket);
+  });
+
+  it("목표매출이 없으면 내 돈도 없다", () => {
+    const fp = fundingPlan([0, 0, 0], cap);
+    expect(fp.totalPocket).toBe(0);
+    expect(fp.lastPocketRound).toBeNull();
+    expect(fp.selfSustainRound).toBeNull();
+  });
+
+  it("roundDetail 의 내 돈은 fundingPlan 과 같다", () => {
+    const g = [1_100_000, 330_000, 330_000, 330_000, 330_000, 330_000];
+    const fp = fundingPlan(g, cap);
+    for (let R = 1; R <= PLAN_HORIZON; R++) {
+      const d = roundDetail(g, cap, R);
+      expect(d.pocket).toBe(fp.rows[R - 1].pocket);
+      expect(d.carry).toBe(fp.rows[R - 1].carry);
+      expect(d.leftover).toBe(fp.rows[R - 1].leftover);
+      expect(d.cumulativePocket).toBe(fp.rows[R - 1].cumulativePocket);
+    }
+  });
+
+  it("목표매출을 키우면 내 돈도 더 든다", () => {
+    const small = planSummary(Array.from({ length: 18 }, () => 330_000), cap).funding.totalPocket;
+    const big = planSummary(Array.from({ length: 18 }, () => 1_100_000), cap).funding.totalPocket;
+    expect(big).toBeGreaterThan(small);
+  });
+
+  it("모든 템플릿에서 총 필요 금액 ≤ 총매출 누계 이고 자립 회차가 있다", () => {
+    for (const t of PLAN_TEMPLATES) {
+      const g = Array.from({ length: PLAN_HORIZON }, (_, i) => (i === 0 ? t.first : t.rest));
+      const s = planSummary(g, CAP.won33);
+      expect(s.funding.totalPocket).toBeGreaterThan(0);
+      expect(s.funding.totalPocket).toBeLessThanOrEqual(s.totalInvest);
+      expect(s.funding.selfSustainRound).not.toBeNull();
+    }
   });
 });
 

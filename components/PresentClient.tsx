@@ -87,6 +87,26 @@ export default function PresentClient({
               <div className="text-3xl font-extrabold text-slate-200 num-font">
                 {bigWon(summary.totalInvest)} <span className="text-xl font-bold text-slate-400">원</span>
               </div>
+              {/* 총 투입은 매 회차 다시 채우는 돈까지 더한 값이라, 준비해야 할 돈으로
+                  읽힌다. 실제로 주머니에서 나가는 돈을 바로 밑에 붙여 바로잡는다. */}
+              <div className="mt-2.5 pt-2.5 border-t border-slate-800">
+                <span className="text-xs font-bold uppercase tracking-widest text-amber-300/90 block mb-0.5">
+                  실제 준비할 내 돈
+                </span>
+                <div className="text-2xl font-extrabold text-amber-300 num-font">
+                  {bigWon(summary.funding.totalPocket)}{" "}
+                  <span className="text-lg font-bold text-amber-200/80">원</span>
+                </div>
+                {summary.funding.selfSustainRound && (
+                  <p className="mt-1 text-sm font-bold text-slate-400">
+                    1~{summary.funding.lastPocketRound}회차까지만 넣으면
+                    <span className="text-emerald-400">
+                      {" "}
+                      {summary.funding.selfSustainRound}회차부터 수당으로 충당
+                    </span>
+                  </p>
+                )}
+              </div>
             </div>
 
             <div className="my-3.5 flex flex-col items-center">

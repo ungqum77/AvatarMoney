@@ -18,6 +18,10 @@ export interface PlanCardData {
   rounds: number;
   goals?: number[];
   totalInvest: number;
+  /** 실제로 주머니에서 꺼내는 돈의 합 (총 투입과 다르다) */
+  myMoney: number;
+  /** 이 회차부터는 내 돈 없이 수당만으로 채워진다. 없으면 null */
+  selfSustainRound: number | null;
   totalNet: number;
   roi: number;
   /** 만든 때. 오늘 몇 번째로 만드는 플랜인지 세는 데 쓴다 */
@@ -187,6 +191,17 @@ export default function PlanListClient({
                       {multiple(c.totalInvest, c.totalNet)}
                     </span>
                   </div>
+                  {/* 총 투입은 되넣는 돈까지 더한 값이다. 실제로 준비할 내 돈을 함께 적는다. */}
+                  <div className="col-span-2 pt-2 flex items-baseline justify-between gap-2 border-t border-surface-container">
+                    <span className="text-label-sm text-on-surface-variant">
+                      실제 준비할 내 돈
+                      {c.selfSustainRound && ` · ${c.selfSustainRound}회차부터 0원`}
+                    </span>
+                    <span className="text-body-lg-bold font-body-lg-bold text-tertiary font-bold shrink-0">
+                      {bigWon(c.myMoney)}원
+                    </span>
+                  </div>
+
                   <div className="col-span-2 pt-2 flex flex-col border-t border-surface-container">
                     <span className="text-label-sm text-on-surface-variant">
                       총 예상 수당(실지급) · 1~{PLAN_HORIZON}회차 합계

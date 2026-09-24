@@ -445,6 +445,44 @@ export default function SimulatorClient({
           </div>
         </div>
 
+        {/* ★ 실제로 주머니에서 꺼내는 돈.
+            '총 매출 누계'는 매 회차 다시 채워 넣는 금액을 전부 더한 값이라
+            내가 준비해야 할 돈처럼 읽힌다. 하지만 2회차부터는 받은 수당으로
+            상당 부분을 되넣으므로, 진짜 필요한 내 돈은 훨씬 적다.
+            어르신이 가장 먼저 묻는 "그래서 내 돈 얼마 드는데?" 의 답이다. */}
+        <div className="rounded-2xl bg-surface-container-lowest shadow-md p-space-md mb-space-md border-t-4 border-tertiary">
+          <div className="flex items-center gap-1.5">
+            <Icon name="savings" size={20} className="text-tertiary" />
+            <span className="text-[18px] font-extrabold text-on-surface">
+              내 돈은 총 얼마 드나요?
+            </span>
+          </div>
+          <div className="flex items-baseline gap-1.5 mt-1">
+            <span className="text-display-currency-mobile font-display-currency-mobile text-tertiary font-extrabold num-font">
+              {bigWon(summary.funding.totalPocket)}
+            </span>
+            <span className="text-body-lg-bold font-body-lg-bold text-tertiary">원</span>
+          </div>
+          {summary.funding.lastPocketRound ? (
+            <p className="text-[16px] font-bold text-on-surface leading-snug mt-1">
+              1회차부터 {summary.funding.lastPocketRound}회차까지 넣는 내 돈 전부입니다
+            </p>
+          ) : (
+            <p className="text-[16px] font-bold text-on-surface leading-snug mt-1">
+              아직 넣을 금액이 없습니다
+            </p>
+          )}
+          {summary.funding.selfSustainRound && (
+            <p className="text-[16px] font-bold text-secondary leading-snug mt-0.5">
+              {summary.funding.selfSustainRound}회차부터는 받은 수당만으로 채워집니다 · 내 돈 0원
+            </p>
+          )}
+          <p className="text-[15px] font-semibold text-on-surface-variant leading-snug mt-2 pt-2 border-t border-surface-container">
+            총 매출 누적 {bigWon(summary.totalInvest)}원 중 {bigWon(summary.totalInvest - summary.funding.totalPocket)}원은
+            받은 수당으로 다시 넣습니다
+          </p>
+        </div>
+
         {/* 언제부터 남는 장사가 되는지 — sticky 밖에 둔다.
             sticky 카드가 화면의 절반을 넘게 덮으면 아래 내용이 안 보인다. */}
         <div className="grid grid-cols-2 gap-2 mb-space-lg">
@@ -459,12 +497,16 @@ export default function SimulatorClient({
               받은 돈 ≥ 넣은 돈
             </div>
           </div>
+          {/* selfFundRound 는 '그 회차 수당으로 다음 회차를 낼 수 있게 된' 회차다.
+              내 돈이 0이 되는 것은 그 다음 회차부터이므로 자립 회차를 적는다. */}
           <div className="rounded-xl bg-secondary-container px-3 py-2.5">
             <div className="text-[15px] font-bold text-on-secondary-container leading-tight">
               추가금액 X
             </div>
             <div className="text-[22px] font-extrabold text-on-secondary-container num-font leading-tight mt-0.5">
-              {summary.selfFundRound ? `${summary.selfFundRound}회차` : "없음"}
+              {summary.funding.selfSustainRound
+                ? `${summary.funding.selfSustainRound}회차`
+                : "없음"}
             </div>
             <div className="text-[14px] font-semibold text-on-secondary-container/80 leading-tight">
               이때부터 수당으로 충당

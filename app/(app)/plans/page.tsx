@@ -26,6 +26,10 @@ export default async function PlansPage() {
       rounds: p.rounds.length,
       goals: p.rounds,
       totalInvest: s.totalInvest,
+      // 총 투입은 매 회차 다시 채우는 돈까지 더한 값이다.
+      // 카드에서 먼저 묻는 건 "내 돈 얼마 드느냐" 이므로 그 값도 함께 넘긴다.
+      myMoney: s.funding.totalPocket,
+      selfSustainRound: s.funding.selfSustainRound,
       totalNet: s.totalNet,
       roi: s.roi,
       createdAt: p.createdAt,
