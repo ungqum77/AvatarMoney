@@ -8,6 +8,7 @@ import {
   planSummary,
   avatarNetInPlan,
   splitByCurrentRound,
+  toFullRounds,
   PLAN_META,
   PLAN_TEMPLATES,
   PLAN_HORIZON,
@@ -21,18 +22,6 @@ import RoundDetailSheet from "@/components/RoundDetailSheet";
 /** 11,000,000 → "1,100만" */
 function manLabel(v: number): string {
   return `${Math.round(v / 10_000).toLocaleString("ko-KR")}만`;
-}
-
-/**
- * 플랜은 무조건 18회차다. '몇 회차까지' 를 고르게 하면 헷갈리기만 하고,
- * 어차피 아바타는 18회차까지 사니까 회차 수는 붙박이로 둔다.
- * 저장된 회차가 모자라면 마지막 값을 이어서 18개까지 채운다.
- */
-function toFullRounds(rs: number[], type: PlanType): number[] {
-  const out = rs.slice(0, MAX_AGE);
-  if (!out.length) out.push(PLAN_META[type].min);
-  while (out.length < MAX_AGE) out.push(out[out.length - 1]);
-  return out;
 }
 
 export default function SimulatorClient({
@@ -59,7 +48,7 @@ export default function SimulatorClient({
   const [type, setType] = useState<PlanType>(initialType);
   // 아바타를 0으로(그 회차엔 안 만들기) 잡을 수 있는지
   const [allowZero, setAllowZero] = useState(initialAllowZero);
-  const [rounds, setRounds] = useState<number[]>(() => toFullRounds(initialRounds, initialType));
+  const [rounds, setRounds] = useState<number[]>(() => toFullRounds(initialRounds, PLAN_META[initialType].min));
   // 지금 내가 몇 회차인지. 0 = 아직 안 정함.
   // 대표 숫자가 '어디까지 받는 돈'인지 가르고, 회차수당표에서 내 자리를 짚는 데 쓴다.
   const [currentRound, setCurrentRound] = useState(initialCurrentRound);
@@ -76,7 +65,7 @@ export default function SimulatorClient({
     type: initialType,
     allowZero: initialAllowZero,
     currentRound: initialCurrentRound,
-    rounds: toFullRounds(initialRounds, initialType).join(","),
+    rounds: toFullRounds(initialRounds, PLAN_META[initialType].min).join(","),
   }));
 
   const meta = PLAN_META[type];

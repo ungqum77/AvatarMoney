@@ -150,7 +150,7 @@ export default function PresentClient({
               <Milestone label="첫 수령" value={`${firstRound}회차`} sub="즉시 시작" />
               <Milestone label="원금 회수" value={breakeven ? `${breakeven}회차` : "—"} sub="누적수당 = 누적매출" accent />
               <Milestone label="최고 정산 회차" value={`${summary.peakRound}회차`} sub={`${shortKRW(Math.max(...summary.inflow.map((r) => r.net)))}원`} />
-              <Milestone label="만드는 아바타" value={`${plan.rounds.length}개`} sub={`${PLAN_META[plan.planType].label}`} />
+              <Milestone label="만드는 아바타" value={`${plan.rounds.filter((g) => g > 0).length}개`} sub={`${PLAN_META[plan.planType].label}`} />
             </div>
           </section>
         </main>

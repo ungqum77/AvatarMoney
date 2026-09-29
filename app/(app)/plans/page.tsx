@@ -23,7 +23,7 @@ export default async function PlansPage() {
       name: p.name,
       planType: p.planType,
       capLabel: meta.capLabel,
-      rounds: p.rounds.length,
+      rounds: p.rounds.filter((g) => g > 0).length,
       goals: p.rounds,
       totalInvest: s.totalInvest,
       // 총 투입은 매 회차 다시 채우는 돈까지 더한 값이다.

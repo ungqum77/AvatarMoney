@@ -16,6 +16,7 @@ import {
   MAX_AGE,
   sanitizeCurrentRound,
   splitByCurrentRound,
+  toFullRounds,
 } from "./points";
 
 // docs/계산규칙-avatarPoint.md 의 검증 정답표를 그대로 고정.
@@ -781,5 +782,35 @@ describe("다음 회차 준비금", () => {
       }
     }
     expect(first).toBe(s.selfFundRound);
+  });
+});
+
+describe("toFullRounds — 저장된 회차가 모자라도 18회차로 본다", () => {
+  it("새 플랜 [최저금액] 하나 → 18회차 모두 같은 금액", () => {
+    expect(toFullRounds([330_000], 330_000)).toEqual(Array(18).fill(330_000));
+  });
+  it("빈 배열이면 최저금액으로 18회차", () => {
+    expect(toFullRounds([], 110_000)).toEqual(Array(18).fill(110_000));
+  });
+  it("모자란 만큼 마지막 값을 잇고, 넘치면 18개에서 자른다", () => {
+    expect(toFullRounds([1_100_000, 330_000], 330_000)).toEqual([
+      1_100_000,
+      ...Array(17).fill(330_000),
+    ]);
+    expect(toFullRounds(Array(20).fill(550_000), 330_000)).toHaveLength(18);
+  });
+  it("0(안 만듦)도 그대로 이어간다", () => {
+    expect(toFullRounds([330_000, 0], 330_000).slice(1)).toEqual(Array(17).fill(0));
+  });
+  // 버그: 새 33만형 플랜에서 33-33 템플릿을 누르면 화면과 같아서 저장되지 않고,
+  // DB의 [330000] 1개로 계산되어 2회차부터 아바타 없이 수당이 나왔다.
+  it("새 플랜 [최저금액]도 2회차부터 매 회차 아바타가 생긴다", () => {
+    for (const type of ["won11", "won33"] as const) {
+      const meta = PLAN_META[type];
+      const stored = toFullRounds([meta.min], meta.min);
+      const s = planSummary(stored, meta.cap);
+      expect(s.perAvatarNet.filter((v) => v > 0)).toHaveLength(18);
+      expect(roundDetail(stored, meta.cap, 2).shares).toHaveLength(2);
+    }
   });
 });

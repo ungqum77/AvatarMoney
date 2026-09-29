@@ -96,6 +96,19 @@ export const PLAN_META: Record<
   won33: { label: "33만원형", min: 330_000, step: 110_000, cap: CAP.won33, capLabel: "3억" },
 };
 
+/**
+ * 플랜은 무조건 18회차다. 저장된 회차가 모자라면 마지막 값을 이어서 18개까지 채운다.
+ * 새 플랜은 [최저금액] 하나만 저장되는데, 시뮬레이터는 18회차로 늘려 보여주면서
+ * 수당표·홈은 1개짜리 그대로 계산하면 2회차부터 아바타가 없는 플랜이 된다.
+ * 그래서 읽을 때와 저장할 때 모두 이 함수로 18개를 맞춘다.
+ */
+export function toFullRounds(rs: number[], min: number): number[] {
+  const out = rs.slice(0, PLAN_HORIZON);
+  if (!out.length) out.push(min);
+  while (out.length < PLAN_HORIZON) out.push(out[out.length - 1]);
+  return out;
+}
+
 // ============================================================================
 // 회차 상세 — 그 회차에 살아있는 아바타 하나하나가 얼마를 주는지, 계산식까지
 // ============================================================================

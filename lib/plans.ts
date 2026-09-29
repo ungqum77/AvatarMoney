@@ -2,7 +2,7 @@ import "server-only";
 import { and, eq, desc } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { plans } from "@/lib/db/schema";
-import { sanitizeCurrentRound, type PlanType } from "@/lib/points";
+import { sanitizeCurrentRound, toFullRounds, PLAN_META, type PlanType } from "@/lib/points";
 
 export interface PlanDTO {
   id: number;
@@ -24,11 +24,13 @@ function toDTO(row: typeof plans.$inferSelect): PlanDTO {
   } catch {
     rounds = [];
   }
+  const planType: PlanType = row.planType === "won11" ? "won11" : "won33";
   return {
     id: row.id,
     name: row.name,
-    planType: (row.planType === "won11" ? "won11" : "won33") as PlanType,
-    rounds,
+    planType,
+    // 예전에 18개보다 적게 저장된 플랜도 시뮬레이터와 똑같이 18회차로 본다
+    rounds: toFullRounds(rounds, PLAN_META[planType].min),
     allowZero: row.allowZero === 1,
     currentRound: sanitizeCurrentRound(row.currentRound),
     updatedAt: row.updatedAt,

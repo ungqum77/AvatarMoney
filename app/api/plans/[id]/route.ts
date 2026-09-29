@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth/session";
 import { getPlan, updatePlan, deletePlan } from "@/lib/plans";
-import { PLAN_META, PLAN_HORIZON, sanitizeCurrentRound, type PlanType } from "@/lib/points";
+import { PLAN_META, PLAN_HORIZON, sanitizeCurrentRound, toFullRounds, type PlanType } from "@/lib/points";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,7 +20,8 @@ function sanitizeRounds(rounds: unknown, planType: PlanType, allowZero: boolean)
     if (rem !== 0) v -= rem;
     return v;
   });
-  return out.length ? out : [meta.min];
+  // 모자라면 마지막 값을 이어 18회차를 채워서 저장한다
+  return toFullRounds(out, meta.min);
 }
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
